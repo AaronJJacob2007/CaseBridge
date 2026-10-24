@@ -1,4 +1,4 @@
-# Slice 2 plus all Slice 0-1 regression checks. Run from PowerShell.
+# Slice 3 plus all Slice 0-2 regression checks. Run from PowerShell.
 Set-Location -LiteralPath 'C:\SIH26\CaseBridge'
 $ErrorActionPreference = 'Stop'
 
@@ -84,12 +84,12 @@ Invoke-Check 'Demo seed loaded' {
 # Inserted 30 cases on first run, or 0 on reruns; existing work preserved.
 # PASS: Demo seed loaded
 
-Invoke-Check 'Slice 0-2 regression tests' {
+Invoke-Check 'Slice 0-3 regression tests' {
     .\.venv\Scripts\python.exe -m pytest backend\tests -q
     if ($LASTEXITCODE -ne 0) { throw 'pytest failed.' }
 }
-# PASS: pytest reports 67 passed in ...s (duration varies).
-# PASS: Slice 0-2 regression tests
+# PASS: pytest reports 118 passed in ...s (duration varies).
+# PASS: Slice 0-3 regression tests
 
 Invoke-Check 'Backend port 8000 available' {
     if (Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue) {
@@ -141,6 +141,13 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Slice 2 HTTP acceptance failed.' }
     }
     # Individual detail/profile/403 audit PASS lines, then PASS: Slice 2 HTTP acceptance checks.
+
+
+    Invoke-Check 'Slice 3 HTTP acceptance checks' {
+        .\.venv\Scripts\python.exe -m backend.verify_http_slice3
+        if ($LASTEXITCODE -ne 0) { throw 'Slice 3 HTTP acceptance failed.' }
+    }
+    # PASS: case reload, denied link review audit, coordination validation; then PASS: Slice 3 HTTP acceptance checks.
 } finally {
     if ($null -ne $backendProcess -and -not $backendProcess.HasExited) {
         Stop-Process -Id $backendProcess.Id

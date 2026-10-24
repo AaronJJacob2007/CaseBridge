@@ -1,8 +1,8 @@
-# CaseBridge - Slice 2
+# CaseBridge - Slice 3
 
-Synthetic data only. Slice 2 adds case creation, case details and action history,
-case actions, institution profiles, and demo role/bureau permission enforcement.
-Slices 0-1 health, table checks, seeding, case filters and overlaps remain.
+Synthetic data only. Slice 3 adds manual link review, institution-wide repeated-
+action warnings, coordination, target-bureau acknowledgment and completion.
+Existing health, seeding, filters, case writes, permissions and histories remain.
 The frontend is reserved for Slice 5.
 
 ## Run verification (Windows PowerShell)
@@ -20,7 +20,7 @@ keys documented in that example, without adding a dotenv dependency.
 
 The script checks Docker/Compose, creates .venv if needed, installs the unchanged
 backend/requirements.txt, checks dependency consistency, starts only PostgreSQL,
-checks six tables, seeds demo data, runs all 67 tests, and starts a temporary backend
+checks six tables, seeds demo data, runs all 118 tests, and starts a temporary backend
 on 127.0.0.1:8000 for real HTTP checks. It stops at the first failure and prints a
 short FAIL line. It never resets the database. Stop any existing server on 8000
 before verification. The temporary backend is stopped afterward; PostgreSQL
@@ -40,7 +40,7 @@ PASS: Dependency consistency
 PASS: PostgreSQL healthy
 PASS: Six database tables
 PASS: Demo seed loaded
-PASS: Slice 0-2 regression tests
+PASS: Slice 0-3 regression tests
 PASS: Backend port 8000 available
 PASS: Temporary backend started
 PASS: Backend ready
@@ -56,6 +56,10 @@ PASS: HTTP supervisor creation denied (403; audit persisted)
 PASS: HTTP supervisor action denied (403; audit persisted)
 PASS: HTTP PGRC-to-RB action denied (403; audit persisted)
 PASS: Slice 2 HTTP acceptance checks
+PASS: HTTP case reload includes links and coordination requests
+PASS: HTTP supervisor link review denied (403; audit persisted)
+PASS: HTTP coordination validation and missing resources (422/404)
+PASS: Slice 3 HTTP acceptance checks
 Verification backend stopped; PostgreSQL left running.
 ~~~
 
@@ -64,12 +68,12 @@ Also expect these data/test results:
 ~~~text
 6 tables: action_log, case_links, cases, coordination_requests, institutions, users
 Seed: 6 users, 8 institutions, 30 cases
-67 passed in ...s
+118 passed in ...s
 ~~~
 
 Seeding reports 30 newly inserted cases on a fresh database, or 0 on a rerun.
-There are 2 Slice 0 tests, 28 Slice 1 cases, and 37 Slice 2 cases, including
-parameterized tests. These are author-run on constructed data when executed by the user.
+There are 2 Slice 0 tests, 28 Slice 1 cases, 37 Slice 2 cases, and 51 Slice 3
+cases, including parameterized tests. These are author-run on constructed data when executed by the user.
 No live verification is claimed until the user supplies output.
 
 ## Individual commands and development server
@@ -184,8 +188,8 @@ Escalation sets status escalated. Transfer requires a different target bureau an
 an officer in that bureau, changes bureau/owner, and sets status transferred.
 The source bureau loses write access after transfer; the target bureau gains it.
 The transfer audit records the acting source officer and bureau. Updates and
-closing affect only the selected case. No case links, merges, coordination or
-automatic closure of another case are implemented in Slice 2.
+closing affect only the selected case. These case actions never merge cases, create links or coordination requests, or
+automatically close another case. Link/coordination operations use Slice 3 routes.
 
 Supervisors are read-only. Officers may create/update only cases in their bureau;
 access is bureau-based, not restricted to the assigned officer. Missing/invalid
@@ -204,6 +208,137 @@ package was added. Live HTTP verification reads case/profile history and makes
 three forbidden requests. Those requests intentionally leave three denial audit
 rows on each verification run, while keeping all 30 cases unchanged. A separate
 PostgreSQL session checks that each denied audit row was committed.
+
+## Slice 3 links and coordination
+
+All following POSTs require X-User-Id from an existing demo user. Officers must
+belong to at least one of the linked cases' current bureaus. Supervisors and
+uninvolved bureaus receive 403 with a committed denied audit row. Reads remain
+available through GET /cases/{case_id}, now including links and
+coordination_requests alongside the existing history. Reloading this endpoint
+loads persisted rows from PostgreSQL. No new read endpoint is needed.
+
+Use real database IDs from the case register and returned link/request payloads;
+the numeric IDs in the examples below are illustrative only.
+
+### Link review
+
+POST /links accepts:
+
+~~~json
+{"case_a":1,"case_b":2,"type":"cross_bureau_overlap","review_state":"confirmed"}
+{"case_a":1,"case_b":2,"type":"cross_bureau_overlap","review_state":"rejected","reason":"Unrelated incidents"}
+~~~
+
+The pair is canonicalized by numeric ID so reversing it updates the same unique
+link. Both cases must have resolved identity and the same institution_id. Missing,
+unknown or different institutional identities return 422. Cross-bureau overlap
+links require different bureaus. A related_incident link may instead be reviewed
+within one bureau. Only confirmed/rejected reviews are accepted from the client;
+there is no automatic confirmation or suggestion creation. Rejection requires a
+nonblank reason. Reviewed user/time, state and reason are saved; both case histories
+receive link_review entries. Cases are never merged or closed by a review.
+Institution overlap alerts still depend only on open cases across bureaus, so
+rejecting a link does not suppress an institution alert.
+
+### Repeated-action check and save
+
+POST /coordination/check accepts only matching fields:
+
+~~~json
+{"link_id":1,"action_type":"Document request","doc_category":"Fee records","period":"2025-26"}
+~~~
+
+The link must currently be confirmed. A matching pending request returns:
+
+~~~json
+{"warning":true,"existing_request":{"id":1},"choices":["coordinate","proceed_separately"]}
+~~~
+
+existing_request in the real response contains the complete database-backed
+request, requester, owner, status and dates, not just its ID. With no match, warning
+is false, existing_request is null, and choices is an empty array. The check alone
+creates no request or successful audit row.
+
+Matching uses the same institution, an existing request on a currently confirmed
+link, and exact action_type/doc_category/period, with status requested,
+acknowledged or in_progress. Null optional fields match null. Existing requests on
+other confirmed pairs at the same institution are also checked. Neither requester
+nor target bureau is part of the matching key: a second officer requesting the
+same work in the opposite direction still sees the warning. No name/NLP matching
+is used. The three text fields are trimmed and blank values are rejected.
+
+POST /coordination accepts the same fields plus to_bureau. The target must be the
+other linked bureau, not the acting officer's bureau. Without an existing match,
+a new request is saved (HTTP 201):
+
+~~~json
+{"link_id":1,"action_type":"Document request","doc_category":"Fee records","period":"2025-26","to_bureau":"PGRC"}
+~~~
+
+If the final save finds a match and no decision was supplied, it returns HTTP 409
+with the warning payload and creates nothing. The save rechecks under a PostgreSQL
+institution-row lock, so a prior clear check is not sufficient to bypass a request
+saved by someone else. The same institution lock is used across its different
+confirmed links. This concurrency protection is implemented but the tests do not
+claim to be a simultaneous multi-process load test.
+
+To coordinate, resubmit with decision coordinate: HTTP 200, outcome coordinated,
+request pointing to the existing row, no duplicate. Both case histories record the
+choice. If that request has stopped matching, return 409 and ask the caller to
+check again instead of silently creating a new request.
+
+To proceed separately, resubmit with decision proceed_separately and a nonblank
+proceed_reason. The new row and its reason are stored (HTTP 201, outcome created);
+the original request remains unchanged. Missing reasons return 422. Different
+action types, periods or document categories do not match and can be saved without
+a warning. to_bureau and decision are not accepted by the read-only /check body.
+
+### Acknowledgment and completion
+
+POST /coordination/{request_id}/ack accepts:
+
+~~~json
+{"owner_id":1,"follow_up_on":"2026-10-30"}
+~~~
+
+Only officers of the request's target bureau may acknowledge; the named owner
+must also be an officer of that bureau. Both owner_id and follow_up_on are
+required. Only requested items may transition to acknowledged. Owner, follow-up
+and acknowledgment timestamp are saved, and both histories receive coord_ack.
+Acknowledged requests still trigger repeated-action warnings.
+
+POST /coordination/{request_id}/complete accepts an empty JSON object or remarks:
+
+~~~json
+{"remarks":"Requested records received"}
+~~~
+
+Only the target bureau may mark a pending item completed. Completed/declined
+requests cannot be completed again. Completion uses action_log.event_type update
+because the immutable schema has no coord_complete event. Completed requests no
+longer warn. Reviewing a link as rejected does not silently close its requests;
+the target bureau may still explicitly complete them. Acknowledgment/new requests
+require a currently confirmed link. Neither acknowledgment nor completion changes
+case status. Timestamp fields use PostgreSQL now(); user-provided follow-up dates
+are stored directly. There is no new use of the wall-clock date for business rules.
+
+### Slice 3 verification behavior
+
+The eight-step INST-0001 walkthrough in expected_outcomes.md is an actual
+PostgreSQL-backed ASGI test. Other cases cover rejection without suppressing
+INST-0003, required reasons, exact identity, reverse pairs, participants/target
+bureau permissions and audits, stale checks, coordinate/proceed choices,
+null matching, pending versus terminal states, different confirmed pairs, reloads,
+and independence after disposing PGRC-101. Per-test transactions roll back all
+link/request writes and updates. No seed/schema/expected-outcome edits or new
+packages were made.
+
+Live HTTP checks validate reload fields, rejected supervisor link review, and
+coordination validation/missing resources. All successful workflow writes run in
+the rollback-isolated tests, preserving the shared demo. Combined live checks add
+four denial rows per full verification run (three from Slice 2, one from Slice 3)
+and do not add or change cases, links or coordination requests.
 
 ## Seed identity and audit behavior
 

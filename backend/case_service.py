@@ -2,6 +2,7 @@
 from fastapi import HTTPException
 from sqlalchemy import select
 
+from backend.coordination_queries import case_links_and_requests
 from backend.config import get_demo_today
 from backend.models import ActionLog, Case, Institution, User
 from backend.permissions import require_officer
@@ -33,6 +34,7 @@ def case_detail(db, case_id):
     officer = db.get(User, case.officer_id) if case.officer_id is not None else None
     result = case_payload(case, institution, officer)
     result["history"] = case_history(db, case_id)
+    result["links"], result["coordination_requests"] = case_links_and_requests(db, case_id)
     return result
 
 
