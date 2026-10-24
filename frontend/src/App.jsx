@@ -1,100 +1,87 @@
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { createApi, loadDemoUsers } from './api.js';
-import { loadOverview } from './overview.js';
-import Overview from './Overview.jsx';
+import { parseRoute } from './caseTools.js';
+import { Feedback, ResourceFeedback } from './Shared.jsx';
+import { useResource } from './useResource.js';
+
+const OverviewPage = lazy(() => import('./OverviewPage.jsx'));
+const CaseRegister = lazy(() => import('./CaseRegister.jsx'));
+const CaseWorkspace = lazy(() => import('./CaseWorkspace.jsx'));
+const InstitutionProfile = lazy(() => import('./InstitutionProfile.jsx'));
 
 function BridgeMark() {
   return <svg viewBox="0 0 32 32" aria-hidden="true" fill="none"><path d="M4 23V13m24 10V13M4 17h24M4 23c2-8 5-12 12-12s10 4 12 12M9 23v-6m7 6V11m7 12v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>;
-}
-
-export function Feedback({ title, message, onRetry, loading = false }) {
-  return <section className="feedback panel" aria-live="polite" role={loading ? 'status' : 'alert'}>
-    <span className={loading ? 'feedback-dot loading' : 'feedback-dot'} aria-hidden="true" />
-    <h2>{title}</h2>
-    <p>{message}</p>
-    {onRetry ? <button className="button" onClick={onRetry}>Try again</button> : null}
-  </section>;
 }
 
 export default function App() {
   const [catalog, setCatalog] = useState({ status: 'loading', users: [], error: '' });
   const [catalogVersion, setCatalogVersion] = useState(0);
   const [selectedId, setSelectedId] = useState('');
-  const [reloadVersion, setReloadVersion] = useState(0);
-  const [snapshot, setSnapshot] = useState({ status: 'loading', userId: '', view: null, error: '' });
+  const [writePending, setWritePending] = useState(false);
+  const [hash, setHash] = useState(() => window.location.hash);
+  const route = parseRoute(hash);
+  const api = useMemo(() => selectedId ? createApi(selectedId) : null, [selectedId]);
+  const identity = useResource(api, '/demo/me');
 
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  useEffect(() => {
+    const names = { overview: 'Overview', register: 'Case register', case: 'Case workspace', institution: 'Institution profile' };
+    document.title = 'CaseBridge | ' + (names[route.kind] || 'Page not found');
+  }, [route.kind]);
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
     setCatalog({ status: 'loading', users: [], error: '' });
-    async function discover() {
-      try {
-        const users = await loadDemoUsers({ signal: controller.signal });
-        if (!active) return;
-        setCatalog({ status: 'ready', users, error: '' });
-        setSelectedId(users.length ? String(users[0].id) : '');
-      } catch (error) {
-        if (!active || error.name === 'AbortError') return;
-        setCatalog({ status: 'error', users: [], error: error.message });
-      }
-    }
-    discover();
+    loadDemoUsers({ signal: controller.signal }).then((users) => {
+      if (!active) return;
+      setCatalog({ status: 'ready', users, error: '' });
+      setSelectedId(users.length ? String(users[0].id) : '');
+    }).catch((error) => {
+      if (active && error.name !== 'AbortError') setCatalog({ status: 'error', users: [], error: error.message });
+    });
     return () => { active = false; controller.abort(); };
   }, [catalogVersion]);
 
-  useEffect(() => {
-    if (!selectedId) return;
-    const controller = new AbortController();
-    let active = true;
-    setSnapshot({ status: 'loading', userId: selectedId, view: null, error: '' });
-    async function refresh() {
-      try {
-        const view = await loadOverview(createApi(selectedId), { signal: controller.signal });
-        if (active) setSnapshot({ status: 'ready', userId: selectedId, view, error: '' });
-      } catch (error) {
-        if (!active || error.name === 'AbortError') return;
-        setSnapshot({ status: 'error', userId: selectedId, view: null, error: error.message });
-      }
-    }
-    refresh();
-    return () => { active = false; controller.abort(); };
-  }, [selectedId, reloadVersion]);
-
-  // Never render the previous user's panel during a switch or a slow request.
-  const current = snapshot.userId === selectedId ? snapshot : { status: 'loading' };
-  const selectedUser = catalog.users.find((user) => String(user.id) === selectedId);
-  const activeUser = current.view?.user ?? selectedUser;
+  function navigate(destination) { if (!writePending) window.location.hash = destination; }
+  function created(record) { setWritePending(false); window.location.hash = '#cases/' + record.id; }
+  const headings = {
+    overview: ['OVERVIEW', 'Case coordination overview', 'Track workload, spot overlaps, and keep follow-ups in view.'],
+    register: ['CASES', 'Case register', 'Find case records and register a complaint for your bureau.'],
+    case: ['CASES', 'Case workspace', 'Review ownership, record progress, and follow the audit history.'],
+    institution: ['INSTITUTIONS', 'Institution profile', 'Follow the full case history at one exact AICTE Permanent ID.'],
+    notfound: ['CASEBRIDGE', 'Page not found', 'Choose Overview or Case register to continue.'],
+  };
+  const [eyebrow, title, description] = headings[route.kind];
+  const user = identity.data;
+  const pageKey = selectedId + ':' + route.key;
+  let content;
+  if (catalog.status === 'error') content = <Feedback title="Could not load demo users" message={catalog.error} onRetry={() => setCatalogVersion((value) => value + 1)} />;
+  else if (catalog.status === 'loading') content = <Feedback title="Loading demo users" message="Preparing your workspace…" loading />;
+  else if (!catalog.users.length) content = <Feedback title="No demo users available" message="The workspace will be available when demo users have been added." onRetry={() => setCatalogVersion((value) => value + 1)} />;
+  else if (identity.status !== 'ready') content = <ResourceFeedback resource={identity} title="demo workspace" />;
+  else if (route.kind === 'overview') content = <OverviewPage key={pageKey} api={api} />;
+  else if (route.kind === 'register') content = <CaseRegister key={pageKey} api={api} user={user} users={catalog.users} navigate={navigate} onBusy={setWritePending} onCreated={created} />;
+  else if (route.kind === 'case') content = <CaseWorkspace key={pageKey} api={api} user={user} users={catalog.users} id={route.id} navigate={navigate} onBusy={setWritePending} />;
+  else if (route.kind === 'institution') content = <InstitutionProfile key={pageKey} api={api} id={route.id} navigate={navigate} />;
+  else content = <Feedback title="Page not found" message="This page address is not available." />;
 
   return <>
-    <a className="skip-link" href="#main">Skip to overview</a>
-    <header className="app-header">
-      <div className="header-inner">
-        <a className="brand" href="#main" aria-label="CaseBridge overview">
-          <span className="brand-mark"><BridgeMark /></span>
-          <span>CaseBridge<small>Institution case coordination</small></span>
-        </a>
-        <span className="nav-item" aria-current="page">Overview</span>
-        <div className="demo-login">
-          <label htmlFor="demo-user">Demo login</label>
-          <select id="demo-user" value={selectedId} disabled={catalog.status !== 'ready' || !catalog.users.length}
-            onChange={(event) => setSelectedId(event.target.value)}>
-            {!catalog.users.length ? <option value="">{catalog.status === 'loading' ? 'Loading users…' : 'No users available'}</option> : null}
-            {catalog.users.map((user) => <option key={user.id} value={user.id}>{user.name} · {user.bureau} · {user.role}</option>)}
-          </select>
-        </div>
-      </div>
-    </header>
-    <main id="main" className="main-shell" tabIndex="-1">
-      <div className="page-heading">
-        <div><p className="eyebrow">CASEBRIDGE / OVERVIEW</p><h1>Case coordination overview</h1><p className="page-description">Track workload, spot overlaps, and keep follow-ups in view.</p></div>
-        <span className="demo-pill"><span aria-hidden="true" />Synthetic demo data</span>
-      </div>
-      {catalog.status === 'error' ? <Feedback title="Could not load demo users" message={catalog.error} onRetry={() => setCatalogVersion((value) => value + 1)} />
-        : catalog.status === 'loading' ? <Feedback title="Loading demo users" message="Preparing your workspace…" loading />
-          : !catalog.users.length ? <Feedback title="No demo users available" message="The overview will be available when demo users have been added." onRetry={() => setCatalogVersion((value) => value + 1)} />
-            : current.status === 'error' ? <Feedback title="Could not load the overview" message={current.error} onRetry={() => setReloadVersion((value) => value + 1)} />
-              : current.status !== 'ready' ? <Feedback title="Loading your overview" message={activeUser ? 'Preparing the view for ' + activeUser.name + '…' : 'Fetching current case data…'} loading />
-                : <Overview view={current.view} onRefresh={() => setReloadVersion((value) => value + 1)} />}
+    <a className="skip-link" href="#main" onClick={(event) => { event.preventDefault(); document.getElementById('main')?.focus(); }}>Skip to workspace</a>
+    <header className="app-header"><div className="header-inner">
+      <a className="brand" href="#overview" onClick={(event) => { event.preventDefault(); navigate('#overview'); }} aria-label="CaseBridge overview"><span className="brand-mark"><BridgeMark /></span><span>CaseBridge<small>Institution case coordination</small></span></a>
+      <nav className="main-nav" aria-label="Main navigation">{[['#overview', 'Overview', route.kind === 'overview'], ['#cases', 'Case register', ['register', 'case', 'institution'].includes(route.kind)]].map(([href, label, active]) => <a key={href} href={href} className="nav-item" aria-current={active ? 'page' : undefined} aria-disabled={writePending || undefined} onClick={(event) => { event.preventDefault(); navigate(href); }}>{label}</a>)}</nav>
+      <div className="demo-login"><label htmlFor="demo-user">Demo login</label><select id="demo-user" value={selectedId} disabled={writePending || catalog.status !== 'ready' || !catalog.users.length} onChange={(event) => setSelectedId(event.target.value)}>
+        {!catalog.users.length ? <option value="">{catalog.status === 'loading' ? 'Loading users…' : 'No users available'}</option> : null}
+        {catalog.users.map((row) => <option key={row.id} value={row.id}>{row.name} · {row.bureau} · {row.role}</option>)}
+      </select></div>
+    </div></header>
+    <main id="main" className="main-shell" tabIndex="-1"><div className="page-heading"><div><p className="eyebrow">CASEBRIDGE / {eyebrow}</p><h1>{title}</h1><p className="page-description">{description}</p></div><span className="demo-pill"><span aria-hidden="true" />Synthetic demo data</span></div>
+      {writePending ? <p role="status" className="save-progress">Saving changes… Please wait before switching users.</p> : null}
+      <Suspense fallback={<Feedback title="Loading workspace" message="Preparing this view…" loading />}>{content}</Suspense>
       <footer className="app-footer">CaseBridge <span aria-hidden="true">·</span> Synthetic demonstration records</footer>
     </main>
   </>;

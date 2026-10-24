@@ -1,11 +1,14 @@
-# CaseBridge frontend - Slice 5
+# CaseBridge frontend - Slice 6
 
-React + React DOM, Vite and recharts. Plain CSS, native fetch and built-in Node
-tests; no UI library, router, compiler plugin or extra testing package is declared.
-Only the Overview is implemented in this slice. See the root README for the
-cumulative setup, backend rules and migration.
+React + React DOM, Vite and recharts only. Plain CSS, native fetch and built-in
+Node tests; no new package or router dependency was added. Native hash routes:
+Overview, case register, case workspace and institution profile. Link review and
+coordination UI are reserved for Slice 7; Reports/reset UI for Slice 8.
 
-## Verify and open the app (PowerShell from repo root)
+## Run from Windows PowerShell
+
+If a prior scripts/dev.ps1 session is still running, press Ctrl+C there first.
+Then from the repository root:
 
 ~~~powershell
 cd C:\SIH26\CaseBridge
@@ -13,81 +16,117 @@ cd C:\SIH26\CaseBridge
 if ($?) { .\scripts\dev.ps1 }
 ~~~
 
-Verification installs frontend dependencies, generates package-lock.json on first
-installation (uses npm ci on later runs), builds, starts the backend on 8000 and
-Vite on 5173, and runs eight real proxy/API integration tests. It stops both
-verification servers afterward. Dev starts them again for the browser checklist;
-keep that PowerShell window open and press Ctrl+C to stop both owned processes.
-Open http://127.0.0.1:5173 yourself. Include package-lock.json in the verified commit.
+Expected key results: 169 backend tests passed; production build successful;
+21 frontend tests passed; PASS: Frontend overview and case checks (21 tests).
+All earlier HTTP checks remain. Verification stops its temporary servers. Dev
+starts both again for your browser check, prints http://127.0.0.1:5173 and keeps
+running until Ctrl+C. Open the URL yourself; no browser is opened automatically.
 
-Manual alternatives, after verification, in two terminals:
-
-~~~powershell
-. .\scripts\load_env.ps1
-.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
-~~~
-
-~~~powershell
-cd C:\SIH26\CaseBridge\frontend
-npm.cmd run dev
-~~~
-
-Individual npm commands from frontend/:
+Individual commands from frontend/:
 
 ~~~powershell
 npm.cmd run build
 npm.cmd test
 ~~~
 
-The tests require the real backend and Vite dev server to be running, plus a prior
-build. They do not mock API responses and do not use a browser. A successful build
-and proxy tests do not prove rendering, layout or click behavior; check these
-manually below. No package installation, build, server start or browser execution
-was performed by the assistant.
+Tests require a successful build and the real Vite/backend/PostgreSQL services
+running. They do not mock API responses. The assistant ran the local build using
+previously installed dependencies, but did not install packages, start Docker,
+open a browser or run database-backed integration checks. A build/API tests do
+not prove rendering/click behavior; complete the checklist below.
 
-## Browser checklist
+## Slice 6 browser checklist (keep the 30-case reference data)
 
-1. Open http://127.0.0.1:5173. Demo login lists all six database users. The reference
-   date is 24 October 2026. No placeholder case counts should appear while loading.
-2. Select Anita Rao. Officer workspace shows PGRC bureau, 17 bureau cases,
-   14 bureau open, 7 assigned open. PGRC alert flags: 5 overdue, 3 due within seven
-   days, 3 pending over 30 days. The main register cards are explicitly global.
-3. Select Rahul Mehta. Officer workspace changes to RB: 11 bureau cases, 9 bureau
-   open, 5 assigned open. RB flags: 1 overdue, 3 due soon, 2 pending over 30 days.
-4. Select Dr. R. K. Sharma. It changes to Supervisor workspace / Cross-bureau
-   supervision with Read-only role, 25 open cases, 8 institutions and 3 bureaus.
-   All-bureau flags show 4 overlaps, 7 overdue, 7 due soon, 6 pending over 30 days,
-   2 escalated and 0 unacknowledged. Regional coverage is shown for this role.
-5. Global cards remain total 30, pending 10, under process 12, disposed 5, overdue
-   7, due within seven days 7, escalated 2, transferred 1. The chart shows OTHER 2,
-   PGRC 17 and RB 11. It is labeled All bureaus and includes disposed cases.
-6. Switch quickly between users and use Refresh overview. After loading, the
-   selected name and role panel must agree; an old user's panel must not linger.
-7. In browser developer tools Network, requests to /api/demo/me, /api/cases,
-   /api/dashboard/summary and /api/alerts must include X-User-Id matching the
-   selected user. Only initial /api/demo/users discovery is without a selection.
-8. Tab through the user selector and Refresh button; the focus ring should be
-   visible. Resize to mobile width: cards should stack without horizontal scroll,
-   and chart values and select labels should remain readable.
+1. Select Anita Rao and open Case register. It should show 30 cases. New case is
+   available for this officer. Open it, enter existing case code PGRC-101,
+   institution name Riverbend Institute of Technology and AICTE ID INST-0001,
+   then Save case. Expect 409: Case code already exists, with no new case. Cancel.
+   This checks the actual form submit without adding a 31st persistent case.
+2. Apply institution name Riverbend -> 7 cases. Clear filters, AICTE Permanent ID
+   INST-0001 -> 5. Clear, region West -> 12. Clear between checks. Other criteria:
+   PGRC bureau -> 17; Fee collection category -> 4; Disposed status -> 5;
+   PGRC-109 code -> 1; received 2026-10-01 through 2026-10-09 -> 3. Empty/unmatched
+   searches show a clear empty state. Invalid/reversed date ranges are rejected.
+3. Clear filters and open PGRC-101 by its case code. Owner Anita Rao, next action,
+   expected disposal and chronological history must be visible. In Add an action,
+   keep Add note / update status and Keep current status. Enter remarks
+   Slice 6 browser persistence check and document reference slice6-note.pdf.
+   Leave the prefilled next action/deadline unchanged and Save action.
+4. The success notice and new history entry must show the remarks, file-name text,
+   actor and date. Reload the browser at its same #cases/ID address: the entry
+   must remain. No uploaded file/download is simulated beyond reference text.
+5. Click the institution name. The exact INST-0001 profile should show the Pune
+   address, West region, PGRC/RB, and five cases including disposed records.
+   Expand PGRC-101 under Case histories and find the saved note. Clicking case
+   codes returns to their workspaces. Browser Back/Forward should also work.
+6. Open PGRC-109. Its raw typo name is retained, Central region is shown and
+   identity is unresolved. There is no guessed institution-profile link.
+7. Select Rahul while viewing PGRC-101: its action form is replaced with an
+   explanation that the case belongs to PGRC. Select Dr. R. K. Sharma: read-only
+   explanation; Case register has no New case button. Reads remain available.
+8. Switch users quickly and check the selected user matches visible forms. During
+   a save, the selector/navigation are disabled. Check keyboard focus and mobile
+   layout; the wide register may scroll inside its table container, not the page.
+9. Return to Overview. The earlier role checks and totals must remain: global 30;
+   Anita PGRC 17/7 assigned open, Rahul RB 11/5, supervisor 25 open/8 institutions/3
+   bureaus, chart PGRC 17/RB 11/OTHER 2. Requests after initial user discovery use
+   X-User-Id. The saved note should not change reference status/count totals.
 
-## API and UI behavior
+Successful new-case creation is tested automatically inside rollback transactions.
+For this main reference database, use the duplicate-case check above rather than
+saving an extra case: an extra persistent case changes the fixed seed counts.
+Do not change expected outcomes to hide it. If you deliberately create one, tell
+the assistant before the next verification; there is no reset/delete UI yet.
 
-The initial read-only /demo/users catalog comes from PostgreSQL; no seed user IDs
-or names are embedded in the app. Once selected, the shared client sends
-X-User-Id on every data request. /demo/me validates that ID and supplies the actual
-role used to build the panel. Unknown/missing IDs return 403 without a write audit
-because these are reads. Existing write permissions and denial audits are unchanged.
+Transfer, escalation and disposal are implemented in the action form and covered
+in rollback tests. They intentionally change case ownership/status and therefore
+reference counts. For this checklist use a note only; test status changes on a
+throwaway database or after the planned reset workflow is available.
 
-The global register/chart intentionally remain all-bureau views for either role.
-Officer panels and alerts are bureau-scoped; assigned-open counts additionally
-match the selected officer ID. Supervisor panels/flags cover all bureaus. All
-case values come from existing PostgreSQL-backed endpoints. No mock production
-responses, fixed user IDs or displayed count fixtures are used.
+## Behavior and permissions
 
-Overview requests run in parallel, are aborted on user switch/unmount, and guard
-against stale responses. Loading, empty catalog and request-error states have no
-fabricated totals and provide retry controls. CSS respects reduced motion; the
-chart has a screen-reader table. A Vite /api proxy forwards to 8000 without adding
-CORS/auth libraries. There is no production deployment in this slice. Vite's
-built-in JSX support is used; React Fast Refresh is not configured without an
-additional plugin. No environment/database credentials are bundled into the UI.
+Case filters are applied server-side, combine with AND, and use the existing eight
+criteria (the date range has two inputs). Apply filters sends query parameters;
+Clear resets them. Categories/regions are suggestions from real cases, not fixed
+institution or case fixtures. Case codes and institutions link through exact IDs.
+Reported names/regions do not resolve identity, and missing/unknown AICTE IDs
+remain unresolved. AICTE ID text is not trimmed into a different identity.
+
+Registration is restricted to the selected officer's bureau. Officer choices come
+from the real user catalog in that bureau. Received date can be blank so the
+backend uses DEMO_TODAY; no client wall-clock default is introduced. Blank optional
+next steps/deadlines are null. The backend remains authoritative for role, bureau,
+owner, duplicate-code and identity validation; 403/409/422 messages are displayed.
+
+Workspace writes require officer role and matching case bureau; supervisors and
+foreign bureaus read without a form. Update supports optional status, note, file
+name, next action and deadline; escalation sets escalated; transfer requires a
+new bureau and its officer and sets transferred. Hidden transfer/status fields
+are omitted from other action payloads. After transfer the source bureau loses
+write access immediately. Every saved operation/history comes from PostgreSQL.
+The UI never appends a fabricated audit entry, merges cases or closes another case.
+
+Reads cancel on user/page change and guard against stale results. Pages are keyed
+by user and route. Explicit saves are single-flight, do not automatically retry or
+cancel a potentially committed write, and ignore completion navigation after
+unmount. Selector/header navigation are disabled while saving. If a network error
+leaves a save outcome uncertain, use Refresh case/history before resubmitting.
+Hash URLs preserve the selected record on reload; Demo login itself resets to the
+first database user on a full browser reload, as in Slice 5.
+
+## Test coverage
+
+The 21 Node checks include the earlier eight overview checks plus 13 new checks:
+all filters, combined/reset queries, Central unresolved identity, case reload and
+chronology, profiles, real role/bureau write gating, production form payloads,
+transfer/escalation hidden fields, date validation, empty/404 states, hash routes,
+and an actual duplicate POST returning 409 without adding a case. All API data is
+real PostgreSQL-backed data through Vite; successful live writes are avoided.
+
+Five new pytest cases use Node to execute the exact production form builders, then
+submit their JSON to the real FastAPI ASGI app/PostgreSQL inside the established
+SAVEPOINT fixture. They cover known/unknown ID creation, save/reload of an action
+and document reference, transfer independence, and exact untrimmed ID behavior.
+All test writes roll back. Earlier backend permission/audit tests remain unchanged.
+No new Python, UI, router, form or testing package was added. Route-level loading
+splits the previously large overview/chart code from the other workspace pages.

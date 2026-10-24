@@ -1,9 +1,9 @@
-# CaseBridge - Slice 5
+# CaseBridge - Slice 6
 
-Synthetic data only. Slices 0-4 provide the backend; Slice 5 adds a React/Vite
-overview with database-backed Demo login, officer/supervisor panels, alert flags
-and a recharts bureau workload chart. Frontend: 5173; backend: 8000. User
-verification and a browser checklist are required before acceptance or commit.
+Synthetic data only. Slices 0-4 provide the backend and Slice 5 the overview.
+Slice 6 adds the filtered case register/entry form, workspace with actions/history,
+and institution profiles. Frontend: 5173; backend: 8000. User verification and a
+browser checklist are required before acceptance or commit.
 
 ## Verify on Windows PowerShell
 
@@ -20,7 +20,7 @@ dotenv dependency. DATABASE_URL must use postgresql+psycopg://. Python 3.11+ is
 required. The script creates .venv if needed, installs the unchanged requirements,
 checks Docker and dependency consistency, starts PostgreSQL, applies the approved
 raw-region migration, checks six tables, seeds missing rows, runs all backend regressions, builds the frontend,
-and starts temporary backend/frontend servers for HTTP and role checks. Stop another server on port
+and starts temporary backend/frontend servers for HTTP and frontend checks. Stop another server on port
 8000 before running it. Failures print a named FAIL and stop immediately.
 
 Expected key output (tool messages and test duration vary):
@@ -30,8 +30,8 @@ Migration: cases.raw_region nullable TEXT available
 PASS: Approved raw-region migration
 6 tables: action_log, case_links, cases, coordination_requests, institutions, users
 Seed: 6 users, 8 institutions, 30 cases
-164 passed in ...s
-PASS: Slice 0-5 regression tests
+169 passed in ...s
+PASS: Slice 0-6 regression tests
 PASS: Frontend production build
 PASS: HTTP /health (200; database ok)
 PASS: HTTP /cases (30 cases; all eight filters)
@@ -55,7 +55,7 @@ PASS: HTTP seven JSON reports and downloadable CSVs
 PASS: Original Slice 4 regional acceptance
 PASS: Slice 4 HTTP acceptance checks
 PASS: Frontend proxy ready (5173 to 8000)
-PASS: Frontend API and role checks (8 tests)
+PASS: Frontend overview and case checks (21 tests)
 Verification servers stopped; PostgreSQL left running.
 ~~~
 
@@ -96,7 +96,7 @@ run verification first. Separate manual terminal commands and the full click-thr
 checklist are in frontend/README.md.
 
 The verifier also checks Node/npm, installs the authorized frontend dependencies,
-builds, starts a temporary Vite server and runs eight integration tests. It uses
+builds, starts a temporary Vite server and runs the cumulative frontend tests. It uses
 npm install on first setup and npm ci when package-lock.json exists; commit the
 generated frontend/package-lock.json after checks pass. Root .gitignore already
 excludes node_modules, dist, .env and log files. No additional Python dependency
@@ -122,8 +122,8 @@ read-only role, institution/bureau counts and regional coverage. Main status
 cards and the chart explicitly remain global for either role. No fixture users,
 seed IDs or case counts are embedded in production UI code. Data requests run
 in parallel and cancel on selection change; stale users' snapshots are guarded.
-Loading/errors/empty users have retry feedback. No case forms, workspace navigation,
-link-review UI or Reports tab were added ahead of their later slices.
+Loading/errors/empty users have retry feedback. Slice 6 adds case forms/workspaces below. Link-review UI and the Reports tab remain
+reserved for their later slices.
 
 Quick checklist: Anita Rao -> PGRC 17 cases, 7 assigned open; Rahul Mehta -> RB 11,
 5 assigned open; Dr. R. K. Sharma -> supervisor/read-only, 25 open, 8 institutions,
@@ -132,6 +132,52 @@ refresh, inspect X-User-Id in Network, and check keyboard/mobile layout. Full
 expected global/alert/region counts are in frontend/README.md. The role panels
 implement the officer/supervisor distinction in the kickoff rules; no separate
 role-table document was present in the supplied local folder.
+
+## Slice 6 case views and persistence
+
+Run the same cumulative command block above after stopping a previous dev session
+with Ctrl+C. Expect 169 backend tests and 21 frontend tests, plus every earlier
+HTTP check and the production build. The five new backend cases invoke the actual
+frontend payload builders with Node, then exercise FastAPI/PostgreSQL commits in
+rollback-isolated tests. Node/npm availability is therefore checked before pytest.
+No backend behavior, schema, seed file, expected outcome or npm dependency changed.
+Only the npm test command now includes the new case tests alongside overview tests.
+
+Native hash URLs are #overview, #cases, #cases/{id}, #institutions/{id}. They allow
+reload and Back/Forward without a router package. User IDs remain database-backed,
+reads cancel on page/user changes, and pages key their state to both. Saving
+single-flights a mutation and disables header user/navigation controls. Success
+uses the committed server response and its history; no fake action is appended.
+Unmounted pages cannot redirect on a late save completion, and writes are never
+automatically retried after a network error.
+
+Case register has all eight filter criteria, Apply/Clear, matching count, case
+and institution links, and a New case form for officers. It submits only that
+user's bureau and eligible officer choices; unknown IDs remain unresolved. Raw
+reported region is retained. Blank received date delegates to DEMO_TODAY. Backend
+403/409/422 responses are shown, and write authorization is still checked there.
+
+Case workspace shows fields, owner, next action, dates and chronological history.
+The form supports notes/status changes, escalation and transfers with target
+bureau/officer. File reference is text only. Blank next step/deadline clears it;
+unchanged prefilled values remain. Supervisor and foreign-bureau views have no
+write form. Institution profile shows the exact Permanent ID, address, region,
+involved bureaus, all cases and expandable chronological case histories. Unresolved
+cases have no guessed institution link. Link review/coordination UI remains Slice 7.
+
+Use the full checklist in frontend/README.md. Key checks: Riverbend 7; INST-0001 5;
+West 12; opening PGRC-101, adding a note/file name, reloading the same case, and
+finding it again in INST-0001's expanded history. Test New case by submitting
+existing PGRC-101 and checking 409, then Cancel. Successful creation is exercised
+in rollback tests; adding an extra persistent case would change the reference 30.
+For the same reason, manual status/transfer tests should use a throwaway database;
+use a note with existing status/deadline unchanged for this reference walkthrough.
+
+The assistant could compile the frontend with the dependencies installed by the
+user in Slice 5; the build passed. It did not install packages, start Docker,
+open a browser or run database/proxy integration tests. Browser rendering and
+interaction remain user checks. Commit message after verified output and browser
+check: slice 6: add case register workspace and institution profiles.
 
 ## Approved raw-region schema exception
 
@@ -330,9 +376,10 @@ prefixes in untrusted text without changing stored or JSON values.
 
 ## Tests, lifecycle and workflow
 
-There are 164 backend tests/cases, including seven new demo-identity reads on top
-of the 157 previous cases. Eight Node integration tests additionally exercise the
-real Vite proxy, header client and role view model without mocked API responses. The approved region behavior
+There are 169 backend tests/cases and 21 Node integration tests through the real
+Vite proxy. Five new rollback-isolated backend cases verify production frontend
+form payloads against PostgreSQL; the 13 new Node cases cover register/workspace
+behavior alongside the eight earlier overview checks. The approved region behavior
 is checked against the original target; the migration is tested for repeatability,
 audit correctness, exact-code mapping and preservation. All data mutations in
 tests roll back. Tests never skip, use SQLite, or commit test records permanently.

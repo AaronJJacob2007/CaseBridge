@@ -1,4 +1,4 @@
-# Slice 5 plus all Slice 0-4 regression checks.
+# Slice 6 plus all Slice 0-5 regression checks.
 # Includes the user-approved raw_region migration. Run from PowerShell.
 Set-Location -LiteralPath 'C:\SIH26\CaseBridge'
 $ErrorActionPreference = 'Stop'
@@ -93,13 +93,6 @@ Invoke-Check 'Demo seed loaded' {
 # Inserted 30 cases on first run, or 0 on reruns; existing work preserved.
 # PASS: Demo seed loaded
 
-Invoke-Check 'Slice 0-5 regression tests' {
-    .\.venv\Scripts\python.exe -m pytest backend\tests -q
-    if ($LASTEXITCODE -ne 0) { throw 'pytest failed.' }
-}
-# PASS: pytest reports 164 passed in ...s (duration varies).
-# PASS: Slice 0-5 regression tests
-
 Invoke-Check 'Node and npm available' {
     node --version
     if ($LASTEXITCODE -ne 0) { throw 'Node.js is unavailable.' }
@@ -107,6 +100,13 @@ Invoke-Check 'Node and npm available' {
     if ($LASTEXITCODE -ne 0) { throw 'npm is unavailable.' }
 }
 # PASS: Node and npm available (use Node 22.12+; your installed Node 24 is supported).
+
+Invoke-Check 'Slice 0-6 regression tests' {
+    .\.venv\Scripts\python.exe -m pytest backend\tests -q
+    if ($LASTEXITCODE -ne 0) { throw 'pytest failed.' }
+}
+# PASS: pytest reports 169 passed in ...s (duration varies).
+# PASS: Slice 0-6 regression tests
 
 Invoke-Check 'Frontend dependencies installed' {
     Push-Location frontend
@@ -227,15 +227,15 @@ try {
     }
     # PASS: Frontend proxy ready (5173 to 8000)
 
-    Invoke-Check 'Frontend API and role checks (8 tests)' {
+    Invoke-Check 'Frontend overview and case checks (21 tests)' {
         Push-Location frontend
         try {
             npm.cmd test
-            if ($LASTEXITCODE -ne 0) { throw 'Frontend API/role checks failed.' }
+            if ($LASTEXITCODE -ne 0) { throw 'Frontend overview/case checks failed.' }
         } finally { Pop-Location }
     }
-    # Node reports 8 tests, 8 pass, 0 fail.
-    # PASS: Frontend API and role checks (8 tests)
+    # Node reports 21 tests, 21 pass, 0 fail.
+    # PASS: Frontend overview and case checks (21 tests)
 } finally {
     if ($null -ne $frontendProcess -and -not $frontendProcess.HasExited) {
         Stop-Process -Id $frontendProcess.Id
