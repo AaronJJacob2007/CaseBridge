@@ -82,7 +82,7 @@ def import_case_rows(session, rows):
             institution_id=institution.id if institution is not None else None,
             identity_resolved=institution is not None,
             raw_aicte_id=row["aicte_id"] or None,
-            raw_institution_name=row["institution_name"],
+            raw_institution_name=row["institution_name"], raw_region=row.get("region") or None,
             bureau=row["bureau"], officer_id=officer.id,
             category=row["category"], description=row["description"],
             received_on=date.fromisoformat(row["received_on"]), status=row["status"],

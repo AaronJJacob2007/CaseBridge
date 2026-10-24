@@ -1,4 +1,4 @@
-"""Slice 3: cases, link review and acknowledged coordination."""
+"""Slice 4: dashboard, alerts, reports and case coordination."""
 from datetime import date
 from typing import Annotated, Literal
 
@@ -8,6 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from backend.analytics_routes import router as analytics_router
 from backend.case_routes import router as case_router
 from backend.coordination_routes import router as coordination_router
 from backend.dependencies import get_db
@@ -16,6 +17,7 @@ from backend.db import engine
 from backend.queries import query_cases, query_overlaps
 
 app = FastAPI(title="CaseBridge")
+app.include_router(analytics_router)
 app.include_router(case_router)
 app.include_router(coordination_router)
 # Validate configuration at startup/import, without reading the wall clock.

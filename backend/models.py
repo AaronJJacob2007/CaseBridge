@@ -1,4 +1,4 @@
-"""Mappings of the six existing schema.sql tables; never create/alter tables here."""
+"""Mappings of schema.sql plus the approved nullable cases.raw_region migration."""
 from sqlalchemy import (
     Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Index,
     Integer, Text, UniqueConstraint, text,
@@ -46,6 +46,7 @@ class Case(Base):
     identity_resolved = Column(Boolean, nullable=False, server_default=text("TRUE"))
     raw_aicte_id = Column(Text)
     raw_institution_name = Column(Text)
+    raw_region = Column(Text)
     bureau = Column(Text, nullable=False)
     officer_id = Column(Integer, ForeignKey("users.id"))
     category = Column(Text)

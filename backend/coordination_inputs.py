@@ -45,6 +45,7 @@ class CoordinationCheck(BaseModel):
 
 class CoordinationCreate(CoordinationCheck):
     to_bureau: Bureau
+    follow_up_on: date | None = None
     decision: Literal["coordinate", "proceed_separately"] | None = None
     proceed_reason: str | None = None
 

@@ -15,7 +15,7 @@ class DatabaseApi:
     def user(self, name):
         return self.db.scalar(select(User).where(User.name == name)).id
 
-    def request(self, method, path, data=None, user=None):
+    def request(self, method, path, data=None, user=None, *, raw=False):
         async def run():
             body = json.dumps(data).encode() if data is not None else b""
             headers = [(b"content-type", b"application/json")]
@@ -38,5 +38,8 @@ class DatabaseApi:
             await app(scope, receive, send)
             status = next(message["status"] for message in messages if message["type"] == "http.response.start")
             content = b"".join(message.get("body", b"") for message in messages if message["type"] == "http.response.body")
+            if raw:
+                response_headers = next(message["headers"] for message in messages if message["type"] == "http.response.start")
+                return status, content.decode("utf-8"), {key.decode(): value.decode() for key, value in response_headers}
             return status, json.loads(content)
         return asyncio.run(run())

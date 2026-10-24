@@ -72,7 +72,8 @@ def create_case(db, actor, data):
     case = Case(
         case_code=data.case_code, institution_id=institution.id if institution else None,
         identity_resolved=institution is not None, raw_aicte_id=data.aicte_id or None,
-        raw_institution_name=data.institution_name, bureau=data.bureau, officer_id=owner.id,
+        raw_institution_name=data.institution_name, raw_region=data.raw_region,
+        bureau=data.bureau, officer_id=owner.id,
         category=data.category, description=data.description, received_on=data.received_on,
         status=data.status, last_action=data.remarks, last_action_on=get_demo_today(),
         next_action=data.next_action, expected_disposal_on=data.expected_disposal_on,

@@ -1,11 +1,11 @@
-# CaseBridge - Slice 3
+# CaseBridge - Slice 4
 
-Synthetic data only. Slice 3 adds manual link review, institution-wide repeated-
-action warnings, coordination, target-bureau acknowledgment and completion.
-Existing health, seeding, filters, case writes, permissions and histories remain.
-The frontend is reserved for Slice 5.
+Synthetic data only. Slices 0-4 cover PostgreSQL setup, seeding, case filters and
+history, bureau permissions, link review, coordination, dashboards, alerts and
+JSON/CSV reports. The frontend is scheduled for Slice 5 on port 5173; the backend
+uses port 8000. User verification is required before acceptance or commit.
 
-## Run verification (Windows PowerShell)
+## Verify on Windows PowerShell
 
 Start Docker Desktop with Linux containers. From PowerShell:
 
@@ -14,36 +14,24 @@ cd C:\SIH26\CaseBridge
 .\scripts\verify.ps1
 ~~~
 
-The script preserves an existing .env. If absent, it creates one from
-.env.example with a generated local password. It loads only the environment
-keys documented in that example, without adding a dotenv dependency.
+The script preserves existing .env credentials. If absent, it copies the example
+with a generated local password. It loads environment values without adding a
+dotenv dependency. DATABASE_URL must use postgresql+psycopg://. Python 3.11+ is
+required. The script creates .venv if needed, installs the unchanged requirements,
+checks Docker and dependency consistency, starts PostgreSQL, applies the approved
+raw-region migration, checks six tables, seeds missing rows, runs all regressions,
+and starts a temporary backend for real HTTP checks. Stop another server on port
+8000 before running it. Failures print a named FAIL and stop immediately.
 
-The script checks Docker/Compose, creates .venv if needed, installs the unchanged
-backend/requirements.txt, checks dependency consistency, starts only PostgreSQL,
-checks six tables, seeds demo data, runs all 118 tests, and starts a temporary backend
-on 127.0.0.1:8000 for real HTTP checks. It stops at the first failure and prints a
-short FAIL line. It never resets the database. Stop any existing server on 8000
-before verification. The temporary backend is stopped afterward; PostgreSQL
-remains running. Backend startup logs are backend/verify.stdout.log and
-backend/verify.stderr.log (ignored by Git).
-
-Expected PASS lines (other tool output and durations vary):
+Expected key output (tool messages and test duration vary):
 
 ~~~text
-PASS: Environment loaded
-PASS: Docker Compose available
-PASS: Docker engine reachable
-PASS: Compose configuration
-PASS: Python environment
-PASS: Dependencies installed
-PASS: Dependency consistency
-PASS: PostgreSQL healthy
-PASS: Six database tables
-PASS: Demo seed loaded
-PASS: Slice 0-3 regression tests
-PASS: Backend port 8000 available
-PASS: Temporary backend started
-PASS: Backend ready
+Migration: cases.raw_region nullable TEXT available
+PASS: Approved raw-region migration
+6 tables: action_log, case_links, cases, coordination_requests, institutions, users
+Seed: 6 users, 8 institutions, 30 cases
+157 passed in ...s
+PASS: Slice 0-4 regression tests
 PASS: HTTP /health (200; database ok)
 PASS: HTTP /cases (30 cases; all eight filters)
 PASS: HTTP /overlaps (INST-0001, INST-0003, INST-0006, INST-0008)
@@ -60,340 +48,253 @@ PASS: HTTP case reload includes links and coordination requests
 PASS: HTTP supervisor link review denied (403; audit persisted)
 PASS: HTTP coordination validation and missing resources (422/404)
 PASS: Slice 3 HTTP acceptance checks
+PASS: HTTP dashboard totals and bureau workload
+PASS: HTTP computed alert case lists
+PASS: HTTP seven JSON reports and downloadable CSVs
+PASS: Original Slice 4 regional acceptance
+PASS: Slice 4 HTTP acceptance checks
 Verification backend stopped; PostgreSQL left running.
 ~~~
 
-Also expect these data/test results:
+On the existing unmigrated 30-case demo, the migration should also print:
 
 ~~~text
-6 tables: action_log, case_links, cases, coordination_requests, institutions, users
-Seed: 6 users, 8 institutions, 30 cases
-118 passed in ...s
+Column added: true; source regions backfilled: 30
 ~~~
 
-Seeding reports 30 newly inserted cases on a fresh database, or 0 on a rerun.
-There are 2 Slice 0 tests, 28 Slice 1 cases, 37 Slice 2 cases, and 51 Slice 3
-cases, including parameterized tests. These are author-run on constructed data when executed by the user.
-No live verification is claimed until the user supplies output.
+On subsequent runs it should print false and 0 instead. A clean empty database
+backfills 0 rows before seeding; the new seed imports preserve source regions.
+Seed reports 0 new cases on reruns and 30 on first load. These are expectations,
+not a claim that this version has passed live verification. Test descriptions are
+'author-run on constructed data' when executed by the user.
 
-## Individual commands and development server
+The temporary backend is stopped afterward, leaving PostgreSQL running. Logs
+are backend/verify.stdout.log and backend/verify.stderr.log, ignored by Git.
+Live checks intentionally leave four denied audit rows per full run; cases,
+links and requests are preserved. A first migration adds one schema audit plus
+one update audit for each backfilled source region. Routine reruns add no
+migration/backfill audit entries when nothing changes.
 
-After the environment/dependencies/database are set up, individual commands are:
+## Approved raw-region schema exception
+
+The original cases table could not retain PGRC-109's CSV region because its
+institution identity is unresolved. The user approved adding nullable TEXT
+cases.raw_region through backend/migrate_raw_region.py. This extends the runtime
+schema but leaves schema.sql, seed_cases.csv, seed_users.csv and
+expected_outcomes.md unchanged. There are still exactly six tables; no migration
+service or new library was added.
+
+The migration runs in a PostgreSQL transaction and takes an advisory transaction
+lock to serialize repeated invocations. It adds the column if missing, validates
+an existing column's type/nullability, then fills only null raw_region values
+from the bundled CSV using exact case_code equality. It never guesses an
+institution from a name, changes institution_id/identity_resolved, overwrites an
+existing source region, resets case work, or changes links/coordination. Each
+filled case gets an update audit. Any failure rolls back the transaction.
+
+New seed imports and POST /cases preserve raw_region. Case creation accepts an
+optional nonblank raw_region string; omission leaves it null. Effective region
+uses the registered institution region first and falls back to the reported
+raw_region. The same rule is used by API fields, case filters, dashboard and
+reports. Missing both produces an Unknown bucket. Source region does not establish
+institution identity. PGRC-109 remains identity_resolved false, institution_id
+null, and appears in no overlap despite counting under Central.
+
+The previously observed Central 4/Unknown 1 limitation is addressed in code by
+this approved extension, not by weakening the original target. The final HTTP
+check still requires Central 5, East 6, North 2, South 5 and West 12. It also
+checks that Central filtering returns five cases including unresolved PGRC-109.
+The old schema-only functional assertion was updated to this approved behavior;
+no prior Slice 0-3 assertion or original expected-outcome file was weakened.
+
+## Individual backend commands
+
+After Docker setup and dependency installation:
 
 ~~~powershell
 . .\scripts\load_env.ps1
+.\.venv\Scripts\python.exe -m backend.migrate_raw_region
 .\.venv\Scripts\python.exe -m backend.seed
 .\.venv\Scripts\python.exe -m backend.check_db
 .\.venv\Scripts\python.exe -m pytest backend\tests -q
 .\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ~~~
 
-The last command stays in the foreground; stop it with Ctrl+C. In a second
-PowerShell terminal:
+Always migrate before seeding/starting this version, including on a clean
+database initialized from the unchanged schema.sql. Stop the foreground server
+with Ctrl+C. In another PowerShell terminal:
 
 ~~~powershell
 curl.exe -i http://127.0.0.1:8000/health
 curl.exe "http://127.0.0.1:8000/cases?institution_name=Riverbend"
-curl.exe "http://127.0.0.1:8000/cases?case_code=PGRC-109"
-curl.exe http://127.0.0.1:8000/overlaps
+curl.exe "http://127.0.0.1:8000/cases?region=Central"
+curl.exe http://127.0.0.1:8000/dashboard/summary
+curl.exe http://127.0.0.1:8000/alerts
+curl.exe -OJ http://127.0.0.1:8000/reports/bureau-wise.csv
 ~~~
 
-These should show HTTP 200 /health with database ok, 7 Riverbend cases, one
-unresolved PGRC-109 record, and the four expected institution alerts respectively.
-The frontend is reserved for Slice 5, with port 5173. There is no frontend server
-to start in Slice 1. No packages were added to requirements for this slice.
-
-## Case API contract
+## Case register and writes
 
 GET /cases returns a JSON array sorted by case_code. Filters combine with AND:
 
-| Query parameter | Matching |
+| Parameter | Matching |
 | --- | --- |
-| institution_name | Literal case-insensitive substring; includes unresolved raw names |
+| institution_name | Literal case-insensitive substring, including unresolved raw names |
 | aicte_id | Exact registered AICTE Permanent ID |
 | case_code | Exact case code |
-| bureau | Exact RB, PGRC or OTHER |
-| region | Exact institution region |
+| bureau | RB, PGRC or OTHER |
+| region | Exact effective region: institution, then reported region |
 | category | Exact category |
 | status | Exact schema status |
 | received_from, received_to | Inclusive received_on date range, YYYY-MM-DD |
 
-Invalid bureau/status/date values and reversed date ranges return HTTP 422.
-An unmatched filter returns an empty array. Unresolved records have null
-institution_id and aicte_id, identity_resolved false, and retain raw identity.
+Invalid dates/bureaus/statuses and reversed date ranges return 422; no matches
+return an empty array. GET /cases/{id} adds chronological history, links and
+coordination_requests. History orders by timestamp then log ID. Missing resources
+return 404. GET /institutions/{id} returns permanent ID, address, region, bureaus
+involved and all cases with histories. Denied actors do not add involved bureaus.
 
-GET /overlaps recomputes from PostgreSQL on each request: resolved institutions
-with non-disposed cases in at least two distinct bureaus. Each alert includes the
-required banner, permanent ID, institution name, and open cases with codes,
-bureaus, statuses and officer names. Categories/descriptions are irrelevant.
-No suggested links are persisted or automatically confirmed.
+POST /cases requires case_code, institution_name and bureau. Optional fields:
+aicte_id, raw_region, officer_id, category, description, received_on, status,
+remarks, next_action, expected_disposal_on. received_on defaults to DEMO_TODAY;
+status to pending; owner to acting user. Known exact institution IDs resolve;
+unknown/missing IDs retain raw values. New institutions are never created by this
+endpoint. Nonblank identity names/codes/remarks are required; extra fields are
+rejected. Creation returns 201 plus details and audit. Duplicate codes return 409.
 
-## Slice 2 write and history API
+POST /cases/{id}/actions requires remarks, with optional file-name-only doc_ref,
+next_action, expected_disposal_on and status. event_type defaults to update.
+Escalation uses event_type escalate and sets status escalated. Transfer uses
+transfer with a different to_bureau and an officer_id in that bureau; it changes
+bureau, owner and status transferred. The source bureau then loses write access.
+Explicit null clears a next step/deadline; omitted fields preserve it. Closing one
+case via an update to disposed never changes another case or its links/requests.
+last_action_on uses DEMO_TODAY; audit timestamps use PostgreSQL now().
 
-GET /cases/{case_id} returns all case fields plus history, sorted by audit time
-then log ID. Each history entry includes event_type, remarks, doc_ref, actor,
-bureau and timestamp. GET /institutions/{institution_id} returns its permanent
-ID, name, address, region, campus, bureaus_involved, and all its cases (including
-disposed cases) with their individual histories. Previous bureaus recorded in
-successful action history are included; denied attempts do not make a bureau
-involved. Missing resources return 404. Reads remain available without a demo
-header; writes require X-User-Id to match an existing database user.
+Reads are available without a header. Every write requires an existing demo
+X-User-Id. Supervisors are read-only; officers may write only in their bureau
+(access is not limited to the assigned officer). Denials return 403 and commit
+an audit row; successful writes commit their mutation and audit together.
+Validation/conflict errors make no case changes. X-User-Id is a demo switch, not
+production authentication. No authentication library was added.
 
-POST /cases accepts:
+## Seeding and identity
 
-~~~json
-{
-  "case_code": "PGRC-DEMO-NEW",
-  "aicte_id": "INST-0001",
-  "institution_name": "Riverbend Institute of Technology",
-  "bureau": "PGRC",
-  "category": "Fee collection",
-  "description": "Synthetic complaint",
-  "remarks": "Case registered",
-  "next_action": "Review complaint",
-  "expected_disposal_on": "2026-11-30"
-}
-~~~
+The explicit demo bootstrap loads six users first and establishes eight
+institutions from nonempty exact IDs in the supplied synthetic CSV. The reusable
+case importer resolves only existing exact IDs, matches officers by exact name
+and bureau, and rejects missing/ambiguous officers. New users/institutions/cases
+have create audits. Reruns preserve existing cases, statuses and histories.
+Bootstrap is a local administrative operation, not a runtime writable API.
 
-case_code, institution_name and bureau are required. received_on defaults to
-DEMO_TODAY; status defaults to pending. officer_id defaults to the acting user
-and may instead name another officer in the same bureau. Known exact aicte_id
-values resolve to the existing institution. Missing/unknown IDs retain the raw
-identity and do not create institutions or links. Extra fields are rejected;
-clients cannot set identity_resolved or actor_id. Creation returns HTTP 201 with
-the full case and its create audit entry. A duplicate case code returns 409.
+## Links and coordination
 
-POST /cases/{case_id}/actions accepts these variants:
+GET /overlaps recomputes institutions with non-disposed cases in at least two
+distinct bureaus. It includes the banner, permanent ID and case codes, bureaus,
+statuses and officers. It ignores descriptions, categories and link-review state.
 
-~~~json
-{"event_type":"update","remarks":"Reply received","doc_ref":"reply.pdf","next_action":"Review reply"}
-{"event_type":"escalate","remarks":"Senior review required"}
-{"event_type":"transfer","remarks":"Transfer for RB review","to_bureau":"RB","officer_id":123}
-{"event_type":"update","remarks":"Case disposed independently","status":"disposed"}
-~~~
+POST /links accepts case_a, case_b, type (cross_bureau_overlap or related_incident),
+review_state (confirmed/rejected), and reason. Rejection needs a nonblank reason.
+Pairs are ordered by numeric ID and reversing a pair updates the same unique
+link. Both cases must have resolved identity at the same institution; cross-bureau
+links need different bureaus. Only officers from either involved bureau may
+review. Both histories receive link_review audits. No automatic merge or closure.
 
-123 is an illustrative target officer ID, not a fixed seed ID. Obtain real IDs
-from the case register's officer_id values; tests look them up by exact user name.
-The acting demo user's numeric ID is sent in the X-User-Id header.
+POST /coordination/check accepts link_id, action_type, doc_category and period.
+Optional category/period nulls match null; strings are trimmed, not fuzzily
+matched. It returns warning, existing_request and choices. Matching covers
+pending statuses requested/acknowledged/in_progress across currently confirmed
+links at the same institution. Requester and target bureau are not matching keys.
+Different category/period/action does not warn. The check creates no request.
 
-Remarks are required and nonblank. doc_ref is only a simulated file name, with
-no upload or filesystem path. event_type defaults to update. Updates may set
-status (except escalation/transfer, which require their matching event types),
-next_action and expected_disposal_on. Explicit null clears either optional next
-step/deadline; omission preserves it. last_action and last_action_on are updated
-from remarks and DEMO_TODAY. Audit timestamps continue to use schema.sql's now()
-default, distinct from the configurable business date.
+POST /coordination adds to_bureau and optional follow_up_on. The target must be
+the other linked bureau. Save rechecks under an institution row lock. A duplicate
+without a choice returns 409 with warning and creates nothing. decision coordinate
+returns 200 with the existing request and audits the choice; a stale choice
+returns 409. decision proceed_separately requires nonblank proceed_reason and
+creates a new row (201) without changing the original. No match creates normally.
+An optional initial follow_up_on enables the unacknowledged reminder alert.
 
-Escalation sets status escalated. Transfer requires a different target bureau and
-an officer in that bureau, changes bureau/owner, and sets status transferred.
-The source bureau loses write access after transfer; the target bureau gains it.
-The transfer audit records the acting source officer and bureau. Updates and
-closing affect only the selected case. These case actions never merge cases, create links or coordination requests, or
-automatically close another case. Link/coordination operations use Slice 3 routes.
+POST /coordination/{id}/ack requires owner_id and follow_up_on. Only target-bureau
+officers may acknowledge, and the owner must be an officer there. It transitions
+requested to acknowledged and records coord_ack on both histories. Acknowledged
+items still warn. POST /coordination/{id}/complete accepts {} or remarks; only
+the target bureau may complete a pending item. Completed/declined items do not
+warn and cannot be completed again. Completion uses audit event update because
+the original schema has no coord_complete event. Rejecting a link does not
+silently close requests; target officers can still explicitly complete them.
 
-Supervisors are read-only. Officers may create/update only cases in their bureau;
-access is bureau-based, not restricted to the assigned officer. Missing/invalid
-users, supervisor attempts and foreign-bureau attempts return 403 and commit a
-denied action_log entry. Valid writes commit their case change and audit row in
-one transaction. Invalid bodies return 422; absent resources 404; rejected
-validation/conflicts do not make case changes. X-User-Id is a demo identity switch,
-not production authentication. No authentication library or new dependency was
-added.
+## Dashboard, alerts and reports
 
-Verification keeps all earlier checks. The 37 new tests execute the actual
-FastAPI ASGI routes with PostgreSQL SAVEPOINTs inside an outer test transaction;
-route commits cannot commit that outer transaction. All test mutations are rolled
-back. Python's standard library supplies the ASGI test harness, so no HTTP client
-package was added. Live HTTP verification reads case/profile history and makes
-three forbidden requests. Those requests intentionally leave three denial audit
-rows on each verification run, while keeping all 30 cases unchanged. A separate
-PostgreSQL session checks that each denied audit row was committed.
+GET /dashboard/summary returns as_of, total, five statuses, open workload, overdue,
+due_within_7_days, unresolved_cases, and bureau_wise/region_wise/institution_wise
+status tables. Unresolved cases remain separate rows in institution reports.
+Data is queried through SQLAlchemy and aggregated in Python for the prototype;
+endpoints never read CSVs or return hard-coded totals.
 
-## Slice 3 links and coordination
+At DEMO_TODAY=2026-10-24: total 30; pending 10; under_process 12; escalated 2;
+transferred 1; disposed 5; open 25; overdue 7; due within 7 days 7. Bureaus:
+PGRC 17, RB 11, OTHER 2. Regions: Central 5, East 6, North 2, South 5, West 12.
 
-All following POSTs require X-User-Id from an existing demo user. Officers must
-belong to at least one of the linked cases' current bureaus. Supervisors and
-uninvolved bureaus receive 403 with a committed denied audit row. Reads remain
-available through GET /cases/{case_id}, now including links and
-coordination_requests alongside the existing history. Reloading this endpoint
-loads persisted rows from PostgreSQL. No new read endpoint is needed.
+GET /alerts recomputes these lists on each read:
 
-Use real database IDs from the case register and returned link/request payloads;
-the numeric IDs in the examples below are illustrative only.
+| Key | Rule |
+| --- | --- |
+| overlap | Open cases in at least two bureaus at one resolved institution |
+| pending_too_long | Pending, received strictly more than 30 days ago |
+| due_within_7_days | Non-disposed, due today through today+7 inclusive |
+| overdue | Non-disposed, deadline strictly before today |
+| escalated | status escalated |
+| unacknowledged | Requested, no acknowledgment timestamp, follow-up strictly before today |
 
-### Link review
+No deadline means no due/overdue alert. Alert comparisons and ageing use
+get_demo_today on each read. DEMO_TODAY defaults to 2026-10-24; invalid ISO dates
+fail clearly. Follow-up dates are explicit inputs. No business rule uses wall time.
 
-POST /links accepts:
+GET /reports/{type} returns type, as_of, ordered columns and rows.
+GET /reports/{type}.csv returns a downloadable table with Content-Disposition.
 
-~~~json
-{"case_a":1,"case_b":2,"type":"cross_bureau_overlap","review_state":"confirmed"}
-{"case_a":1,"case_b":2,"type":"cross_bureau_overlap","review_state":"rejected","reason":"Unrelated incidents"}
-~~~
+| Type | Contents |
+| --- | --- |
+| institution-wise | Institution status/workload, unresolved cases individually |
+| bureau-wise | Bureau status/workload |
+| region-wise | Effective region status/workload |
+| status-wise | Five statuses and counts |
+| ageing-buckets | Open-case received ages: 0-7, 8-30, 31-60, 61-90, 91+ days |
+| disposal-rate | Overall and bureau disposed/total percentages |
+| overlapping-cases | One open-case row per overlapping institution |
 
-The pair is canonicalized by numeric ID so reversing it updates the same unique
-link. Both cases must have resolved identity and the same institution_id. Missing,
-unknown or different institutional identities return 422. Cross-bureau overlap
-links require different bureaus. A related_incident link may instead be reviewed
-within one bureau. Only confirmed/rejected reviews are accepted from the client;
-there is no automatic confirmation or suggestion creation. Rejection requires a
-nonblank reason. Reviewed user/time, state and reason are saved; both case histories
-receive link_review entries. Cases are never merged or closed by a review.
-Institution overlap alerts still depend only on open cases across bureaus, so
-rejecting a link does not suppress an institution alert.
+Ageing totals at reference date: 0, 6, 6, 4, 9 (25 open cases). Future received
+dates clamp to age zero. Overall disposal rate: 16.67%. Overlap report: 15 case
+rows across four institutions. Unknown report types return 404. Empty databases
+return zero totals, empty alerts and no division errors. CSVs escape formula
+prefixes in untrusted text without changing stored or JSON values.
 
-### Repeated-action check and save
+## Tests, lifecycle and workflow
 
-POST /coordination/check accepts only matching fields:
+There are 157 tests/cases including parameterized checks: 148 earlier functional
+cases plus nine source-region/migration regressions. The approved region behavior
+is checked against the original target; the migration is tested for repeatability,
+audit correctness, exact-code mapping and preservation. All data mutations in
+tests roll back. Tests never skip, use SQLite, or commit test records permanently.
+ASGI tests use Python's standard library instead of an extra HTTP client package.
+Multi-process concurrency/load tests and browser/UI verification are not claimed.
 
-~~~json
-{"link_id":1,"action_type":"Document request","doc_category":"Fee records","period":"2025-26"}
-~~~
-
-The link must currently be confirmed. A matching pending request returns:
-
-~~~json
-{"warning":true,"existing_request":{"id":1},"choices":["coordinate","proceed_separately"]}
-~~~
-
-existing_request in the real response contains the complete database-backed
-request, requester, owner, status and dates, not just its ID. With no match, warning
-is false, existing_request is null, and choices is an empty array. The check alone
-creates no request or successful audit row.
-
-Matching uses the same institution, an existing request on a currently confirmed
-link, and exact action_type/doc_category/period, with status requested,
-acknowledged or in_progress. Null optional fields match null. Existing requests on
-other confirmed pairs at the same institution are also checked. Neither requester
-nor target bureau is part of the matching key: a second officer requesting the
-same work in the opposite direction still sees the warning. No name/NLP matching
-is used. The three text fields are trimmed and blank values are rejected.
-
-POST /coordination accepts the same fields plus to_bureau. The target must be the
-other linked bureau, not the acting officer's bureau. Without an existing match,
-a new request is saved (HTTP 201):
-
-~~~json
-{"link_id":1,"action_type":"Document request","doc_category":"Fee records","period":"2025-26","to_bureau":"PGRC"}
-~~~
-
-If the final save finds a match and no decision was supplied, it returns HTTP 409
-with the warning payload and creates nothing. The save rechecks under a PostgreSQL
-institution-row lock, so a prior clear check is not sufficient to bypass a request
-saved by someone else. The same institution lock is used across its different
-confirmed links. This concurrency protection is implemented but the tests do not
-claim to be a simultaneous multi-process load test.
-
-To coordinate, resubmit with decision coordinate: HTTP 200, outcome coordinated,
-request pointing to the existing row, no duplicate. Both case histories record the
-choice. If that request has stopped matching, return 409 and ask the caller to
-check again instead of silently creating a new request.
-
-To proceed separately, resubmit with decision proceed_separately and a nonblank
-proceed_reason. The new row and its reason are stored (HTTP 201, outcome created);
-the original request remains unchanged. Missing reasons return 422. Different
-action types, periods or document categories do not match and can be saved without
-a warning. to_bureau and decision are not accepted by the read-only /check body.
-
-### Acknowledgment and completion
-
-POST /coordination/{request_id}/ack accepts:
-
-~~~json
-{"owner_id":1,"follow_up_on":"2026-10-30"}
-~~~
-
-Only officers of the request's target bureau may acknowledge; the named owner
-must also be an officer of that bureau. Both owner_id and follow_up_on are
-required. Only requested items may transition to acknowledged. Owner, follow-up
-and acknowledgment timestamp are saved, and both histories receive coord_ack.
-Acknowledged requests still trigger repeated-action warnings.
-
-POST /coordination/{request_id}/complete accepts an empty JSON object or remarks:
-
-~~~json
-{"remarks":"Requested records received"}
-~~~
-
-Only the target bureau may mark a pending item completed. Completed/declined
-requests cannot be completed again. Completion uses action_log.event_type update
-because the immutable schema has no coord_complete event. Completed requests no
-longer warn. Reviewing a link as rejected does not silently close its requests;
-the target bureau may still explicitly complete them. Acknowledgment/new requests
-require a currently confirmed link. Neither acknowledgment nor completion changes
-case status. Timestamp fields use PostgreSQL now(); user-provided follow-up dates
-are stored directly. There is no new use of the wall-clock date for business rules.
-
-### Slice 3 verification behavior
-
-The eight-step INST-0001 walkthrough in expected_outcomes.md is an actual
-PostgreSQL-backed ASGI test. Other cases cover rejection without suppressing
-INST-0003, required reasons, exact identity, reverse pairs, participants/target
-bureau permissions and audits, stale checks, coordinate/proceed choices,
-null matching, pending versus terminal states, different confirmed pairs, reloads,
-and independence after disposing PGRC-101. Per-test transactions roll back all
-link/request writes and updates. No seed/schema/expected-outcome edits or new
-packages were made.
-
-Live HTTP checks validate reload fields, rejected supervisor link review, and
-coordination validation/missing resources. All successful workflow writes run in
-the rollback-isolated tests, preserving the shared demo. Combined live checks add
-four denial rows per full verification run (three from Slice 2, one from Slice 3)
-and do not add or change cases, links or coordination requests.
-
-## Seed identity and audit behavior
-
-There is no separate institution-register input file. The explicit demo bootstrap
-uses nonempty exact IDs from the bundled synthetic seed_cases.csv to establish
-eight institutions, after loading the six users. This is demo master-data setup,
-not identity verification against AICTE. The reusable import_case_rows function
-only looks up existing exact IDs: unknown/missing IDs stay unresolved even when
-the institution name resembles a registered institution. It never creates an
-institution. Officer names match exactly and must identify one officer in the
-case's bureau; otherwise the seed transaction fails.
-
-Seed reruns skip existing case codes and existing institutions. They never reset
-case status, officer work, links or coordination. Conflicting/ambiguous existing
-user names fail clearly. New users, institutions and cases each receive a create
-action_log row; bootstrap user/institution rows have no case_id and no actor.
-The seed is an explicit local administrative operation, not a writable API.
-Runtime write permissions are implemented in Slice 2.
-
-Tests seed within per-test PostgreSQL transactions and roll back their mutations.
-They do not drop/recreate schema tables, commit synthetic test cases, or change
-the supplied four protected inputs. PostgreSQL sequence IDs can advance during
-rolled-back tests; tests and UI must not rely on fixed numeric IDs.
-
-## Known input/schema limitation
-
-PGRC-109 has region Central in the CSV but no resolved institution. The unchanged
-cases table has no raw-region column. Its API region is therefore null and region
-filters use only the registered institution region. The supplied expected Central
-total of 5 in Slice 4 includes this unresolved case; the schema retains region for
-only the other 4 Central cases. This needs a user decision before Slice 4; neither
-the schema nor expected_outcomes.md has been changed to hide the mismatch.
-
-## Configuration and database lifecycle
-
-DATABASE_URL must come from the environment and use postgresql+psycopg://.
-DEMO_TODAY defaults to 2026-10-24 and is validated as an ISO date. All future rules
-requiring today's date must call backend.config.get_demo_today rather than the
-wall clock. Date-relative alerts are scheduled for Slice 4.
-
-Compose exposes PostgreSQL on 127.0.0.1:5432 and mounts the unchanged schema.sql
-read-only for initialization of an empty named volume. Restarting preserves data;
-changing .env later does not change credentials inside an existing database.
-No migrations, create_all calls or additional services are introduced.
+Compose exposes only PostgreSQL at 127.0.0.1:5432. It mounts unchanged schema.sql
+for first initialization of an empty named volume. Restarting preserves data.
+Changing .env does not change an existing database's credentials. Only the
+approved raw-region migration extends that initial schema; no create_all or
+additional service is used.
 
 ~~~powershell
 docker compose stop
 docker compose start
 ~~~
 
-## Workflow for all slices
-
-Follow Rules in GPT_kickoff_prompt.md and implement only one slice per prompt.
-The assistant writes code and tests, but does not run Docker, install packages or
-open a browser. Update scripts/verify.ps1 cumulatively and provide a RUN THIS
-block, expected results, unrun checks and a one-line commit message. Await user
-output and explicit "proceed to Slice N" before starting another slice.
-Do not claim a slice is done. Fix failures from the user's actual output.
+One slice at a time. The assistant must not run Docker, install packages or open
+a browser. Update scripts/verify.ps1 cumulatively, provide RUN THIS, expected
+output, unrun checks and a commit message, then await user output. Do not claim
+a slice is done. Fix failures from actual user output and wait for explicit
+permission to proceed to the next slice. Commit/push only after verification is
+green. Preserve all four original input files. The nullable raw_region migration
+is the explicit user-approved exception to matching the original runtime schema.

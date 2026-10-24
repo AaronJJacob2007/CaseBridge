@@ -1,4 +1,5 @@
-# Slice 3 plus all Slice 0-2 regression checks. Run from PowerShell.
+# Slice 4 plus all Slice 0-3 regression checks.
+# Includes the user-approved raw_region migration. Run from PowerShell.
 Set-Location -LiteralPath 'C:\SIH26\CaseBridge'
 $ErrorActionPreference = 'Stop'
 
@@ -69,6 +70,14 @@ Invoke-Check 'PostgreSQL healthy' {
 }
 # PASS: PostgreSQL healthy (db row also shows healthy).
 
+Invoke-Check 'Approved raw-region migration' {
+    .\.venv\Scripts\python.exe -m backend.migrate_raw_region
+    if ($LASTEXITCODE -ne 0) { throw 'Approved raw-region migration failed.' }
+}
+# Migration: cases.raw_region nullable TEXT available
+# PASS: Approved raw-region migration
+# First run backfills missing source regions; reruns preserve existing values.
+
 Invoke-Check 'Six database tables' {
     .\.venv\Scripts\python.exe -m backend.check_db
     if ($LASTEXITCODE -ne 0) { throw 'Table check failed.' }
@@ -84,12 +93,12 @@ Invoke-Check 'Demo seed loaded' {
 # Inserted 30 cases on first run, or 0 on reruns; existing work preserved.
 # PASS: Demo seed loaded
 
-Invoke-Check 'Slice 0-3 regression tests' {
+Invoke-Check 'Slice 0-4 regression tests' {
     .\.venv\Scripts\python.exe -m pytest backend\tests -q
     if ($LASTEXITCODE -ne 0) { throw 'pytest failed.' }
 }
-# PASS: pytest reports 118 passed in ...s (duration varies).
-# PASS: Slice 0-3 regression tests
+# PASS: pytest reports 157 passed in ...s (duration varies).
+# PASS: Slice 0-4 regression tests
 
 Invoke-Check 'Backend port 8000 available' {
     if (Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue) {
@@ -148,6 +157,13 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Slice 3 HTTP acceptance failed.' }
     }
     # PASS: case reload, denied link review audit, coordination validation; then PASS: Slice 3 HTTP acceptance checks.
+
+
+    Invoke-Check 'Slice 4 HTTP acceptance checks' {
+        .\.venv\Scripts\python.exe -m backend.verify_http_slice4
+        if ($LASTEXITCODE -ne 0) { throw 'Slice 4 HTTP acceptance failed; inspect the named FAIL check above.' }
+    }
+    # PASS: Slice 4 HTTP acceptance checks, including original regional expectations.
 } finally {
     if ($null -ne $backendProcess -and -not $backendProcess.HasExited) {
         Stop-Process -Id $backendProcess.Id

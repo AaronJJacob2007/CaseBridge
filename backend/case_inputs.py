@@ -16,6 +16,7 @@ class CaseCreate(BaseModel):
     case_code: str = Field(min_length=1)
     aicte_id: str | None = None
     institution_name: str = Field(min_length=1)
+    raw_region: str | None = None
     bureau: Bureau
     officer_id: OfficerId | None = None
     category: str | None = None
@@ -32,6 +33,14 @@ class CaseCreate(BaseModel):
         if not value.strip():
             raise ValueError("Must not be blank")
         return value.strip()
+
+
+    @field_validator("raw_region")
+    @classmethod
+    def nonblank_region(cls, value):
+        if value is not None and not value.strip():
+            raise ValueError("raw_region must be nonblank or null")
+        return value.strip() if value is not None else None
 
 
 class CaseAction(BaseModel):

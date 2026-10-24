@@ -18,8 +18,9 @@ def case_payload(case, institution, officer):
         "institution_name": institution.name if institution else case.raw_institution_name,
         "raw_aicte_id": case.raw_aicte_id,
         "raw_institution_name": case.raw_institution_name,
+        "raw_region": case.raw_region,
         "address": institution.address if institution else None,
-        "region": institution.region if institution else None,
+        "region": institution.region if institution and institution.region is not None else case.raw_region,
         "bureau": case.bureau, "officer_id": case.officer_id,
         "officer": officer.name if officer else None,
         "category": case.category, "description": case.description,
@@ -43,7 +44,7 @@ def query_cases(session: Session, *, institution_name: str | None = None,
         statement = statement.where(func.coalesce(Institution.name, Case.raw_institution_name).icontains(institution_name, autoescape=True))
     for column, value in (
         (Institution.aicte_id, aicte_id), (Case.case_code, case_code),
-        (Case.bureau, bureau), (Institution.region, region),
+        (Case.bureau, bureau), (func.coalesce(Institution.region, Case.raw_region), region),
         (Case.category, category), (Case.status, status),
     ):
         if value is not None:

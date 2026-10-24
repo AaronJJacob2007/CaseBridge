@@ -129,13 +129,13 @@ def create_coordination(db, actor, data):
         link_id=link.id, institution_id=cases[0].institution_id, requested_by=actor.id,
         to_bureau=data.to_bureau, action_type=data.action_type,
         doc_category=data.doc_category, period=data.period, status="requested",
-        proceed_reason=data.proceed_reason,
+        proceed_reason=data.proceed_reason, follow_up_on=data.follow_up_on,
     )
     db.add(request)
     db.flush()
     audit_pair(db, actor, cases, "coord_request",
                f"Request {request.id}: {data.action_type}; documents: {data.doc_category}; period: {data.period}; "
-               f"target: {data.to_bureau}; proceed reason: {data.proceed_reason or 'not applicable'}")
+               f"target: {data.to_bureau}; follow-up: {data.follow_up_on}; proceed reason: {data.proceed_reason or 'not applicable'}")
     return {"outcome": "created", "request": request_payload(db, request)}, 201
 
 
