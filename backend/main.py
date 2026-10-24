@@ -1,4 +1,4 @@
-"""Slice 4: dashboard, alerts, reports and case coordination."""
+"""Slice 5: backend APIs and database-backed demo user discovery."""
 from datetime import date
 from typing import Annotated, Literal
 
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from backend.analytics_routes import router as analytics_router
 from backend.case_routes import router as case_router
 from backend.coordination_routes import router as coordination_router
+from backend.demo_routes import router as demo_router
 from backend.dependencies import get_db
 from backend.config import get_demo_today
 from backend.db import engine
@@ -20,6 +21,7 @@ app = FastAPI(title="CaseBridge")
 app.include_router(analytics_router)
 app.include_router(case_router)
 app.include_router(coordination_router)
+app.include_router(demo_router)
 # Validate configuration at startup/import, without reading the wall clock.
 get_demo_today()
 

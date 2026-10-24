@@ -1,4 +1,4 @@
-# Slice 4 plus all Slice 0-3 regression checks.
+# Slice 5 plus all Slice 0-4 regression checks.
 # Includes the user-approved raw_region migration. Run from PowerShell.
 Set-Location -LiteralPath 'C:\SIH26\CaseBridge'
 $ErrorActionPreference = 'Stop'
@@ -93,12 +93,41 @@ Invoke-Check 'Demo seed loaded' {
 # Inserted 30 cases on first run, or 0 on reruns; existing work preserved.
 # PASS: Demo seed loaded
 
-Invoke-Check 'Slice 0-4 regression tests' {
+Invoke-Check 'Slice 0-5 regression tests' {
     .\.venv\Scripts\python.exe -m pytest backend\tests -q
     if ($LASTEXITCODE -ne 0) { throw 'pytest failed.' }
 }
-# PASS: pytest reports 157 passed in ...s (duration varies).
-# PASS: Slice 0-4 regression tests
+# PASS: pytest reports 164 passed in ...s (duration varies).
+# PASS: Slice 0-5 regression tests
+
+Invoke-Check 'Node and npm available' {
+    node --version
+    if ($LASTEXITCODE -ne 0) { throw 'Node.js is unavailable.' }
+    npm.cmd --version
+    if ($LASTEXITCODE -ne 0) { throw 'npm is unavailable.' }
+}
+# PASS: Node and npm available (use Node 22.12+; your installed Node 24 is supported).
+
+Invoke-Check 'Frontend dependencies installed' {
+    Push-Location frontend
+    try {
+        if (Test-Path package-lock.json) { npm.cmd ci --no-fund --no-audit }
+        else { npm.cmd install --no-fund --no-audit }
+        if ($LASTEXITCODE -ne 0) { throw 'Frontend dependency installation failed.' }
+    } finally { Pop-Location }
+}
+# PASS: Frontend dependencies installed
+# First installation generates frontend/package-lock.json; include it in the verified commit.
+
+Invoke-Check 'Frontend production build' {
+    Push-Location frontend
+    try {
+        npm.cmd run build
+        if ($LASTEXITCODE -ne 0) { throw 'Frontend build failed.' }
+    } finally { Pop-Location }
+}
+# Vite reports a successful build and creates frontend/dist.
+# PASS: Frontend production build
 
 Invoke-Check 'Backend port 8000 available' {
     if (Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue) {
@@ -107,7 +136,15 @@ Invoke-Check 'Backend port 8000 available' {
 }
 # PASS: Backend port 8000 available
 
+Invoke-Check 'Frontend port 5173 available' {
+    if (Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue) {
+        throw 'Port 5173 is in use. Stop that frontend yourself, then rerun.'
+    }
+}
+# PASS: Frontend port 5173 available
+
 $backendProcess = $null
+$frontendProcess = $null
 try {
     Invoke-Check 'Temporary backend started' {
         $script:backendProcess = Start-Process -FilePath "$PWD\.venv\Scripts\python.exe" -ArgumentList '-m','uvicorn','backend.main:app','--host','127.0.0.1','--port','8000' -WorkingDirectory $PWD.Path -WindowStyle Hidden -RedirectStandardOutput "$PWD\backend\verify.stdout.log" -RedirectStandardError "$PWD\backend\verify.stderr.log" -PassThru
@@ -164,9 +201,47 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Slice 4 HTTP acceptance failed; inspect the named FAIL check above.' }
     }
     # PASS: Slice 4 HTTP acceptance checks, including original regional expectations.
+
+
+    Invoke-Check 'Temporary frontend started' {
+        $script:frontendProcess = Start-Process -FilePath (Get-Command node.exe).Source -ArgumentList "$PWD\frontend\node_modules\vite\bin\vite.js",'--host','127.0.0.1','--port','5173','--strictPort' -WorkingDirectory "$PWD\frontend" -WindowStyle Hidden -RedirectStandardOutput "$PWD\frontend\verify.stdout.log" -RedirectStandardError "$PWD\frontend\verify.stderr.log" -PassThru
+    }
+    # PASS: Temporary frontend started
+
+    Invoke-Check 'Frontend proxy ready (5173 to 8000)' {
+        $ready = $false
+        $lastProxyError = 'No successful response.'
+        for ($attempt = 0; $attempt -lt 30; $attempt++) {
+            if ($frontendProcess.HasExited) {
+                Get-Content frontend\verify.stderr.log
+                throw 'Frontend exited before proxy health check.'
+            }
+            try {
+                $response = Invoke-RestMethod 'http://127.0.0.1:5173/api/health' -TimeoutSec 2
+                if ($response.status -eq 'ok' -and $response.database -eq 'ok') { $ready = $true; break }
+                $lastProxyError = 'Unexpected proxy health response.'
+            } catch { $lastProxyError = $_.Exception.Message }
+            Start-Sleep -Milliseconds 500
+        }
+        if (-not $ready) { throw "Frontend proxy failed: $lastProxyError" }
+    }
+    # PASS: Frontend proxy ready (5173 to 8000)
+
+    Invoke-Check 'Frontend API and role checks (8 tests)' {
+        Push-Location frontend
+        try {
+            npm.cmd test
+            if ($LASTEXITCODE -ne 0) { throw 'Frontend API/role checks failed.' }
+        } finally { Pop-Location }
+    }
+    # Node reports 8 tests, 8 pass, 0 fail.
+    # PASS: Frontend API and role checks (8 tests)
 } finally {
+    if ($null -ne $frontendProcess -and -not $frontendProcess.HasExited) {
+        Stop-Process -Id $frontendProcess.Id
+    }
     if ($null -ne $backendProcess -and -not $backendProcess.HasExited) {
         Stop-Process -Id $backendProcess.Id
     }
-    Write-Output 'Verification backend stopped; PostgreSQL left running.'
+    Write-Output 'Verification servers stopped; PostgreSQL left running.'
 }

@@ -1,9 +1,9 @@
-# CaseBridge - Slice 4
+# CaseBridge - Slice 5
 
-Synthetic data only. Slices 0-4 cover PostgreSQL setup, seeding, case filters and
-history, bureau permissions, link review, coordination, dashboards, alerts and
-JSON/CSV reports. The frontend is scheduled for Slice 5 on port 5173; the backend
-uses port 8000. User verification is required before acceptance or commit.
+Synthetic data only. Slices 0-4 provide the backend; Slice 5 adds a React/Vite
+overview with database-backed Demo login, officer/supervisor panels, alert flags
+and a recharts bureau workload chart. Frontend: 5173; backend: 8000. User
+verification and a browser checklist are required before acceptance or commit.
 
 ## Verify on Windows PowerShell
 
@@ -19,8 +19,8 @@ with a generated local password. It loads environment values without adding a
 dotenv dependency. DATABASE_URL must use postgresql+psycopg://. Python 3.11+ is
 required. The script creates .venv if needed, installs the unchanged requirements,
 checks Docker and dependency consistency, starts PostgreSQL, applies the approved
-raw-region migration, checks six tables, seeds missing rows, runs all regressions,
-and starts a temporary backend for real HTTP checks. Stop another server on port
+raw-region migration, checks six tables, seeds missing rows, runs all backend regressions, builds the frontend,
+and starts temporary backend/frontend servers for HTTP and role checks. Stop another server on port
 8000 before running it. Failures print a named FAIL and stop immediately.
 
 Expected key output (tool messages and test duration vary):
@@ -30,8 +30,9 @@ Migration: cases.raw_region nullable TEXT available
 PASS: Approved raw-region migration
 6 tables: action_log, case_links, cases, coordination_requests, institutions, users
 Seed: 6 users, 8 institutions, 30 cases
-157 passed in ...s
-PASS: Slice 0-4 regression tests
+164 passed in ...s
+PASS: Slice 0-5 regression tests
+PASS: Frontend production build
 PASS: HTTP /health (200; database ok)
 PASS: HTTP /cases (30 cases; all eight filters)
 PASS: HTTP /overlaps (INST-0001, INST-0003, INST-0006, INST-0008)
@@ -53,7 +54,9 @@ PASS: HTTP computed alert case lists
 PASS: HTTP seven JSON reports and downloadable CSVs
 PASS: Original Slice 4 regional acceptance
 PASS: Slice 4 HTTP acceptance checks
-Verification backend stopped; PostgreSQL left running.
+PASS: Frontend proxy ready (5173 to 8000)
+PASS: Frontend API and role checks (8 tests)
+Verification servers stopped; PostgreSQL left running.
 ~~~
 
 On the existing unmigrated 30-case demo, the migration should also print:
@@ -68,12 +71,67 @@ Seed reports 0 new cases on reruns and 30 on first load. These are expectations,
 not a claim that this version has passed live verification. Test descriptions are
 'author-run on constructed data' when executed by the user.
 
-The temporary backend is stopped afterward, leaving PostgreSQL running. Logs
+Both temporary verification servers are stopped afterward, leaving PostgreSQL running. Logs
 are backend/verify.stdout.log and backend/verify.stderr.log, ignored by Git.
 Live checks intentionally leave four denied audit rows per full run; cases,
 links and requests are preserved. A first migration adds one schema audit plus
 one update audit for each backfilled source region. Routine reruns add no
 migration/backfill audit entries when nothing changes.
+
+## Slice 5 frontend run and manual check
+
+Use the cumulative verifier and then the development launcher:
+
+~~~powershell
+cd C:\SIH26\CaseBridge
+.\scripts\verify.ps1
+if ($?) { .\scripts\dev.ps1 }
+~~~
+
+The last command prints Frontend: http://127.0.0.1:5173 and Backend:
+http://127.0.0.1:8000. Keep that window open, open the frontend URL yourself,
+and press Ctrl+C to stop both owned development servers after checking the UI.
+The development launcher does not install packages, run migrations or start Docker;
+run verification first. Separate manual terminal commands and the full click-through
+checklist are in frontend/README.md.
+
+The verifier also checks Node/npm, installs the authorized frontend dependencies,
+builds, starts a temporary Vite server and runs eight integration tests. It uses
+npm install on first setup and npm ci when package-lock.json exists; commit the
+generated frontend/package-lock.json after checks pass. Root .gitignore already
+excludes node_modules, dist, .env and log files. No additional Python dependency
+or schema change was introduced for Slice 5. Declared npm packages are React,
+React DOM (React's browser renderer), Vite and recharts only; Vite handles JSX
+without an extra React plugin. Tests use Node's built-in runner.
+
+Expected new PASS lines include Node and npm available, Frontend dependencies
+installed, Frontend production build, Frontend port 5173 available, Temporary
+frontend started, Frontend proxy ready (5173 to 8000), and Frontend API and role
+checks (8 tests). These run alongside all Slice 0-4 checks. Tests and a build do
+not prove browser rendering or click behavior; complete the manual checklist too.
+
+A read-only GET /demo/users supplies actual PostgreSQL IDs/names/roles/bureaus;
+initial discovery cannot send a selected user ID. After selection every data
+request uses X-User-Id via the shared client. GET /demo/me validates that identity
+without writing an audit row. Invalid identity reads return 403; all earlier
+write authorization and denied-write audit behavior remain unchanged.
+
+Officer workspace shows its bureau totals, assigned-open workload and
+bureau-scoped alert flags. Supervisor workspace shows all-bureau oversight,
+read-only role, institution/bureau counts and regional coverage. Main status
+cards and the chart explicitly remain global for either role. No fixture users,
+seed IDs or case counts are embedded in production UI code. Data requests run
+in parallel and cancel on selection change; stale users' snapshots are guarded.
+Loading/errors/empty users have retry feedback. No case forms, workspace navigation,
+link-review UI or Reports tab were added ahead of their later slices.
+
+Quick checklist: Anita Rao -> PGRC 17 cases, 7 assigned open; Rahul Mehta -> RB 11,
+5 assigned open; Dr. R. K. Sharma -> supervisor/read-only, 25 open, 8 institutions,
+3 bureaus. Global total stays 30; chart PGRC 17, RB 11, OTHER 2. Switch quickly,
+refresh, inspect X-User-Id in Network, and check keyboard/mobile layout. Full
+expected global/alert/region counts are in frontend/README.md. The role panels
+implement the officer/supervisor distinction in the kickoff rules; no separate
+role-table document was present in the supplied local folder.
 
 ## Approved raw-region schema exception
 
@@ -272,13 +330,15 @@ prefixes in untrusted text without changing stored or JSON values.
 
 ## Tests, lifecycle and workflow
 
-There are 157 tests/cases including parameterized checks: 148 earlier functional
-cases plus nine source-region/migration regressions. The approved region behavior
+There are 164 backend tests/cases, including seven new demo-identity reads on top
+of the 157 previous cases. Eight Node integration tests additionally exercise the
+real Vite proxy, header client and role view model without mocked API responses. The approved region behavior
 is checked against the original target; the migration is tested for repeatability,
 audit correctness, exact-code mapping and preservation. All data mutations in
 tests roll back. Tests never skip, use SQLite, or commit test records permanently.
 ASGI tests use Python's standard library instead of an extra HTTP client package.
-Multi-process concurrency/load tests and browser/UI verification are not claimed.
+Multi-process concurrency/load tests and automated browser rendering are not claimed;
+frontend click-through verification is performed by the user.
 
 Compose exposes only PostgreSQL at 127.0.0.1:5432. It mounts unchanged schema.sql
 for first initialization of an empty named volume. Restarting preserves data.
