@@ -105,7 +105,7 @@ Invoke-Check 'Slice 0-8 regression tests' {
     .\.venv\Scripts\python.exe -m pytest backend\tests -q
     if ($LASTEXITCODE -ne 0) { throw 'pytest failed.' }
 }
-# PASS: pytest reports 188 passed in ...s (duration varies).
+# PASS: pytest reports 206 passed in ...s (duration varies).
 # PASS: Slice 0-8 regression tests
 
 Invoke-Check 'Test rollback preserved six database tables' {
@@ -232,15 +232,15 @@ try {
     }
     # PASS: Frontend proxy ready (5173 to 8000)
 
-    Invoke-Check 'Frontend overview, case, coordination and report checks (41 tests)' {
+    Invoke-Check 'Frontend overview, case, coordination and report checks (44 tests)' {
         Push-Location frontend
         try {
             npm.cmd test
             if ($LASTEXITCODE -ne 0) { throw 'Frontend overview/case/coordination/report checks failed.' }
         } finally { Pop-Location }
     }
-    # Node reports 41 tests, 41 pass, 0 fail.
-    # PASS: Frontend overview, case, coordination and report checks (41 tests)
+    # Node reports 44 tests, 44 pass, 0 fail.
+    # PASS: Frontend overview, case, coordination and report checks (44 tests)
 } finally {
     if ($null -ne $frontendProcess -and -not $frontendProcess.HasExited) {
         Stop-Process -Id $frontendProcess.Id

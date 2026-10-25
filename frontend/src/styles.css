@@ -93,3 +93,5 @@ th[scope="row"] { font-weight: 600; }.numeric { text-align: right; font-variant-
 .report-picker { max-width: var(--size-select); }.report-table { min-width: 100%; }.report-table th, .report-table td { white-space: nowrap; }.report-toolbar .form-actions { margin-top: 0; }.report-notes { margin-top: var(--space-12); color: var(--color-muted); font-size: var(--font-size-12); }
 
 .chart-value { fill: var(--color-text); font-family: var(--font-family); font-size: var(--font-size-12); }
+
+.report-rules { display: grid; gap: var(--space-8); padding: var(--space-16); margin-bottom: var(--space-16); background: var(--color-page); border: var(--border-width) solid var(--color-border); border-radius: var(--radius); }

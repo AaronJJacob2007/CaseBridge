@@ -31,7 +31,7 @@ Migration: cases.raw_region nullable TEXT available
 PASS: Approved raw-region migration
 6 tables: action_log, case_links, cases, coordination_requests, institutions, users
 Seed: 6 users, 8 institutions, 30 cases
-188 passed in ...s
+206 passed in ...s
 PASS: Slice 0-8 regression tests
 PASS: Frontend production build
 PASS: HTTP /health (200; database ok)
@@ -56,7 +56,7 @@ PASS: HTTP seven JSON reports and downloadable CSVs
 PASS: Original Slice 4 regional acceptance
 PASS: Slice 4 HTTP acceptance checks
 PASS: Frontend proxy ready (5173 to 8000)
-PASS: Frontend overview, case, coordination and report checks (41 tests)
+PASS: Frontend overview, case, coordination and report checks (44 tests)
 Verification servers stopped; PostgreSQL left running.
 ~~~
 
@@ -376,7 +376,7 @@ prefixes in untrusted text without changing stored or JSON values.
 
 ## Tests, lifecycle and workflow
 
-There are 188 backend tests/cases and 41 Node tests, including checks through the real
+There are 206 backend tests/cases and 44 Node tests, including checks through the real
 Vite proxy. Five new rollback-isolated backend cases verify production frontend
 form payloads against PostgreSQL; the 13 new Node cases cover register/workspace
 behavior alongside the eight earlier overview checks. The approved region behavior
@@ -532,7 +532,7 @@ Cases: 30; pending: 10; under_process: 12; escalated: 2; transferred: 1; dispose
 Previous demo actions, links and coordination requests have been removed.
 ~~~
 
-Slice 8 cumulative expectations: 188 backend tests; 41 frontend tests; production
+Slice 8 cumulative expectations: 206 backend tests; 44 frontend tests; production
 build and all earlier HTTP checks. The three reset tests check reference recovery,
 repeatability, actual record preservation after outer rollback, seed-failure
 rollback and refusal of unexpected tables. Eleven new Node checks compare all
@@ -615,7 +615,7 @@ Stop dev with Ctrl+C and run the same cumulative commands:
 if ($?) { .\scripts\dev.ps1 }
 ~~~
 
-Expect the existing 188 backend tests, 41 frontend checks and a production build.
+Expect the existing 206 backend tests, 44 frontend checks and a production build.
 Browser checks: compare Overview as Anita/Rahul/supervisor; check scope labels,
 counts and institution/case links; open PGRC-101/RB-201 and check the shared ID,
 bureau cards, review and histories; exercise a repeated-request warning and
@@ -651,7 +651,7 @@ No seed, schema, original expected outcome or saved record changes are required.
 Three rollback PostgreSQL regressions create Rahul's Document request / Fee records
 / 2025-26 to PGRC, then check Anita's identical draft to RB. They cover all three
 pending statuses, the complete existing-request warning, no precheck writes and
-409 on a duplicate save. Cumulative verification expects 188 backend tests and 41
+409 on a duplicate save. Cumulative verification expects 206 backend tests and 44
 frontend checks. Issue 1 verification passed; subsequent review fixes are tracked below.
 DESIGN.md was not present in the repository when issue 1 was inspected.
 
@@ -672,8 +672,8 @@ Six rollback PostgreSQL cases test rejection before acknowledgment (including
 rejected links and status-only bypasses), success after acknowledgment/in-progress,
 no case-status changes and repeat-completion rejection. Two older tests now
 acknowledge first to follow the explicitly revised rule. A Node check verifies
-completion visibility across states, roles and bureaus. Expect 188 backend tests
-and 41 frontend checks. Seed files and expected_outcomes.md are unchanged.
+completion visibility across states, roles and bureaus. Expect 206 backend tests
+and 44 frontend checks. Seed files and expected_outcomes.md are unchanged.
 
 Browser check: open a requested item as its target-bureau officer. Acknowledge
 and assign responsibility is visible; Mark completed is absent. Choose an owner
@@ -686,3 +686,40 @@ open overdue cases show a red badge, and shared styling uses centralized tokens.
 Case histories remain scoped to their own case; no history query was changed.
 Reports and browser-downloaded CSVs omit internal institution IDs. Browser layout
 and cumulative regression checks still require verification.
+
+
+## Monthly / quarterly receipt-cohort performance
+
+Reports now includes Monthly / quarterly performance. Choose a calendar month
+or quarter and year, then Apply period. Defaults use DEMO_TODAY (October 2026),
+not the system clock. The JSON and CSV endpoints are:
+
+- GET /reports/performance?kind=monthly&year=2026&period=10
+- GET /reports/performance.csv?kind=quarterly&year=2026&period=3
+
+Each table has All, PGRC, RB and OTHER rows, including zero counts. Cases received
+means received_on is within the selected period, inclusive, through DEMO_TODAY.
+Disposed counts those same cases whose current saved status is disposed;
+outstanding counts all other current statuses. Received = disposed + outstanding.
+Bureaus use current assignments, and unresolved cases are included. Dates show
+calendar boundaries, receipts-through and status-as-of. Current periods are
+labelled partial; future periods and invalid selections return 422.
+
+These are current outcomes of a receipt cohort, not disposals made during the
+period or historical period-end backlog. There is no reliable dedicated disposal
+date or complete historical status snapshot in the original schema, so neither
+is inferred from last_action_on or remarks. Reopening a case changes its current
+cohort outcome. CSV retains the same dates/counts and the browser filename includes
+the selected year/period. No schema, seed or expected_outcomes.md changes.
+
+Eighteen new backend cases cover calendar boundaries, leap years, quarter ranges,
+empty periods, current status/reopening, invalid/future periods, JSON/CSV parity,
+and supervisor access. Four of these run without PostgreSQL. Three standalone
+Node checks cover period URLs, date/zero presentation and CSV preservation.
+Cumulative expectations: 206 backend cases and 44 Node checks.
+
+Run scripts/verify.ps1, then scripts/dev.ps1. In Reports select Monthly / quarterly
+performance, apply October 2026 and Q3 2026, download each CSV and compare all rows.
+Check February 2024 gives zero counts with its leap-day boundary and November 2026
+shows a clear future-period error. Browser layout and PostgreSQL integration tests
+must be verified locally; this agent session cannot access local PostgreSQL.

@@ -4,7 +4,7 @@ export function visibleReportColumns(columns) {
   const identity = ['aicte_id', 'institution_name'].filter(column => visible.includes(column));
   return [...identity, ...visible.filter(column => !identity.includes(column))];
 }
-export const numericReportColumn = column => ['total', 'pending', 'under_process', 'escalated', 'transferred', 'disposed', 'open', 'min_days', 'max_days', 'disposal_rate_percent'].includes(column);
+export const numericReportColumn = column => ['received', 'outstanding', 'total', 'pending', 'under_process', 'escalated', 'transferred', 'disposed', 'open', 'min_days', 'max_days', 'disposal_rate_percent'].includes(column);
 
 // Retain each raw CSV cell so server quoting and spreadsheet-formula escaping
 // survive column removal. Handle quoted commas, doubled quotes and newlines.

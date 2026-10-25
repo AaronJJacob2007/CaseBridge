@@ -1,17 +1,21 @@
 """Slice 4 read-only analytics and downloadable CSV reports."""
 import csv
 from io import StringIO
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Response
 from fastapi.encoders import jsonable_encoder
 
 from backend.analytics import REPORT_TYPES, alerts, dashboard_summary, report
 from backend.case_routes import Database
+from backend.performance import performance_report
 
 router = APIRouter()
 
 
-def get_report(db, report_type):
+def get_report(db, report_type, kind="monthly", year=None, period=None):
+    if report_type == "performance":
+        return performance_report(db, kind, year, period)
     if report_type not in REPORT_TYPES:
         raise HTTPException(status_code=404, detail="Unknown report type")
     return report(db, report_type)
@@ -36,8 +40,8 @@ def get_alerts(db: Database):
 
 # Register the suffix route before the generic route.
 @router.get("/reports/{report_type}.csv")
-def get_report_csv(report_type: str, db: Database):
-    data = jsonable_encoder(get_report(db, report_type))
+def get_report_csv(report_type: str, db: Database, kind: Literal["monthly", "quarterly"] = "monthly", year: int | None = None, period: int | None = None):
+    data = jsonable_encoder(get_report(db, report_type, kind, year, period))
     output = StringIO(newline="")
     writer = csv.DictWriter(output, fieldnames=data["columns"])
     writer.writeheader()
@@ -47,5 +51,5 @@ def get_report_csv(report_type: str, db: Database):
 
 
 @router.get("/reports/{report_type}")
-def get_report_json(report_type: str, db: Database):
-    return get_report(db, report_type)
+def get_report_json(report_type: str, db: Database, kind: Literal["monthly", "quarterly"] = "monthly", year: int | None = None, period: int | None = None):
+    return get_report(db, report_type, kind, year, period)

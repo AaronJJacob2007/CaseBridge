@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort",
-    "test": "node --test --test-reporter=spec tests/overview.test.mjs tests/cases.test.mjs tests/coordination.test.mjs tests/reports.test.mjs"
+    "test": "node --test --test-reporter=spec tests/overview.test.mjs tests/cases.test.mjs tests/coordination.test.mjs tests/reports.test.mjs tests/performance.test.mjs"
   },
   "dependencies": {
     "react": "19.3.0",

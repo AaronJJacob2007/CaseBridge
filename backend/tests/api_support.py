@@ -1,6 +1,7 @@
 """Exercise the real FastAPI ASGI app without adding an HTTP client package."""
 import asyncio
 import json
+from urllib.parse import urlsplit
 
 from sqlalchemy import select
 
@@ -21,10 +22,11 @@ class DatabaseApi:
             headers = [(b"content-type", b"application/json")]
             if user is not None:
                 headers.append((b"x-user-id", str(user).encode()))
+            url = urlsplit(path)
             scope = {
                 "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
-                "method": method, "scheme": "http", "path": path,
-                "raw_path": path.encode(), "query_string": b"", "root_path": "",
+                "method": method, "scheme": "http", "path": url.path,
+                "raw_path": url.path.encode(), "query_string": url.query.encode(), "root_path": "",
                 "headers": headers, "server": ("test", 80), "client": ("127.0.0.1", 1234),
             }
             messages = []
