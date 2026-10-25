@@ -37,7 +37,7 @@ export default function CaseWorkspace({ api, user, users, id, navigate, onBusy }
     }, (error) => { if (error.status === 403) resource.refresh(); });
   }
   return <div className="case-page">
-    <div className="section-title"><div><p className="eyebrow">CASE WORKSPACE</p><h2>{record.case_code}</h2><p>{record.institution_name}</p></div><button className="button button-secondary" onClick={resource.refresh} disabled={mutation.busy}>Refresh case</button></div>
+    <div className="section-title"><div><h2>{record.case_code}</h2><p>{record.institution_name}</p></div><button className="button button-secondary" onClick={resource.refresh} disabled={mutation.busy}>Refresh case</button></div>
     {notice ? <p className="success-notice" role="status">{notice}</p> : null}<ErrorNotice error={mutation.error} />
     <section className="panel" aria-labelledby="case-details-heading"><div className="section-title"><h2 id="case-details-heading">Case details</h2><StatusBadge status={record.status} /></div>
       {!record.identity_resolved ? <p className="identity-notice">Identity unresolved. Reported details are retained; this case is not linked to a registered institution.</p> : null}

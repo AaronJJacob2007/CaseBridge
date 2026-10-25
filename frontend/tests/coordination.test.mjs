@@ -75,3 +75,16 @@ test('blocked supervisor review surfaces real 403 detail and keeps overlap alert
     error instanceof ApiError && error.status === 403 && error.message === 'Supervisors are read-only' && error.data.detail === error.message);
   assert.equal((await api('/overlaps')).length, 4);
 });
+
+test('completion controls require target-bureau officer and an actual acknowledgment', async () => {
+  const { canCompleteRequest } = await import('../src/coordinationTools.js');
+  const target = { role: 'officer', bureau: 'PGRC' };
+  const base = { to_bureau: 'PGRC', acknowledged_at: '2026-10-25T12:00:00Z' };
+  for (const status of ['requested', 'completed', 'declined']) assert.equal(canCompleteRequest(target, { ...base, status }), false);
+  for (const status of ['acknowledged', 'in_progress']) {
+    assert.equal(canCompleteRequest(target, { ...base, status }), true);
+    assert.equal(canCompleteRequest(target, { ...base, status, acknowledged_at: null }), false);
+    assert.equal(canCompleteRequest({ role: 'supervisor', bureau: 'PGRC' }, { ...base, status }), false);
+    assert.equal(canCompleteRequest({ role: 'officer', bureau: 'RB' }, { ...base, status }), false);
+  }
+});

@@ -6,6 +6,10 @@ function id(value) {
 }
 const optional = value => value?.trim() || null;
 export const canReview = (user, a, b) => user.role === 'officer' && [a.bureau, b.bureau].includes(user.bureau);
+export const canCompleteRequest = (user, request) => user.role === 'officer'
+  && user.bureau === request.to_bureau
+  && ['acknowledged', 'in_progress'].includes(request.status)
+  && Boolean(request.acknowledged_at);
 export function buildLinkReview(a, b, state, reason = '') {
   if (id(a) === id(b)) throw new Error('Choose two different cases.');
   if (!['confirmed', 'rejected'].includes(state)) throw new Error('Choose Confirm or Reject.');
@@ -35,8 +39,11 @@ export function buildAcknowledgment(owner, date) {
   return { owner_id: id(owner), follow_up_on: date };
 }
 export async function checkCoordination(api, body) {
-  const { link_id, action_type, doc_category, period } = body;
-  return api('/coordination/check', { method: 'POST', body: { link_id, action_type, doc_category, period } });
+  const { link_id, action_type, doc_category, period, to_bureau } = body;
+  return api('/coordination/check', { method: 'POST', body: {
+    link_id, action_type, doc_category, period,
+    ...(to_bureau !== undefined ? { to_bureau } : {}),
+  } });
 }
 export async function submitCoordination(api, body) {
   // Recheck immediately before every save, including either warning choice.

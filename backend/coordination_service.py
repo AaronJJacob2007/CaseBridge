@@ -172,6 +172,8 @@ def complete(db, actor, request_id, data):
     request, cases = request_context(db, actor, request_id, confirmed=False)
     if request.status not in PENDING:
         raise HTTPException(status_code=409, detail="Request is already completed or declined")
+    if request.status == "requested" or request.acknowledged_at is None:
+        raise HTTPException(status_code=409, detail="Acknowledge the request before marking it completed")
     request.status = "completed"
     db.flush()
     # schema.sql has no coord_complete event; use its allowed 'update' value.

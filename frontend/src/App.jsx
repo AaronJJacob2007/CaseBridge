@@ -11,10 +11,6 @@ const CaseRegister = lazy(() => import('./CaseRegister.jsx'));
 const CaseWorkspace = lazy(() => import('./CaseWorkspace.jsx'));
 const InstitutionProfile = lazy(() => import('./InstitutionProfile.jsx'));
 
-function BridgeMark() {
-  return <svg viewBox="0 0 32 32" aria-hidden="true" fill="none"><path d="M4 23V13m24 10V13M4 17h24M4 23c2-8 5-12 12-12s10 4 12 12M9 23v-6m7 6V11m7 12v-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>;
-}
-
 export default function App() {
   const [catalog, setCatalog] = useState({ status: 'loading', users: [], error: '' });
   const [catalogVersion, setCatalogVersion] = useState(0);
@@ -59,7 +55,7 @@ export default function App() {
     institution: ['INSTITUTIONS', 'Institution profile', 'Follow the full case history at one exact AICTE Permanent ID.'],
     notfound: ['CASEBRIDGE', 'Page not found', 'Choose Overview or Case register to continue.'],
   };
-  const [eyebrow, title, description] = headings[route.kind];
+  const [, title, description] = headings[route.kind];
   const user = identity.data;
   const pageKey = selectedId + ':' + route.key;
   let content;
@@ -73,22 +69,22 @@ export default function App() {
   else if (route.kind === 'register') content = <CaseRegister key={pageKey} api={api} user={user} users={catalog.users} navigate={navigate} onBusy={setWritePending} onCreated={created} />;
   else if (route.kind === 'case') content = <CaseWorkspace key={pageKey} api={api} user={user} users={catalog.users} id={route.id} navigate={navigate} onBusy={setWritePending} />;
   else if (route.kind === 'institution') content = <InstitutionProfile key={pageKey} api={api} id={route.id} navigate={navigate} />;
-  else content = <Feedback title="Page not found" message="This page address is not available." />;
+  else content = <Feedback title="Choose a workspace" message="This page address is not available." />;
 
   return <>
     <a className="skip-link" href="#main" onClick={(event) => { event.preventDefault(); document.getElementById('main')?.focus(); }}>Skip to workspace</a>
     <header className="app-header"><div className="header-inner">
-      <a className="brand" href="#overview" onClick={(event) => { event.preventDefault(); navigate('#overview'); }} aria-label="CaseBridge overview"><span className="brand-mark"><BridgeMark /></span><span>CaseBridge<small>Institution case coordination</small></span></a>
+      <a className="brand" href="#overview" onClick={(event) => { event.preventDefault(); navigate('#overview'); }} aria-label="CaseBridge overview">CaseBridge</a>
       <nav className="main-nav" aria-label="Main navigation">{[['#overview', 'Overview', route.kind === 'overview'], ['#cases', 'Case register', ['register', 'case', 'institution'].includes(route.kind)], ['#overlaps', 'Overlap & coordination', route.kind === 'overlaps'], ['#reports', 'Reports', route.kind === 'reports']].map(([href, label, active]) => <a key={href} href={href} className="nav-item" aria-current={active ? 'page' : undefined} aria-disabled={writePending || undefined} onClick={(event) => { event.preventDefault(); navigate(href); }}>{label}</a>)}</nav>
       <div className="demo-login"><label htmlFor="demo-user">Demo login</label><select id="demo-user" value={selectedId} disabled={writePending || catalog.status !== 'ready' || !catalog.users.length} onChange={(event) => setSelectedId(event.target.value)}>
         {!catalog.users.length ? <option value="">{catalog.status === 'loading' ? 'Loading users…' : 'No users available'}</option> : null}
-        {catalog.users.map((row) => <option key={row.id} value={row.id}>{row.name} · {row.bureau} · {row.role}</option>)}
+        {catalog.users.map((row) => <option key={row.id} value={row.id}>{row.name}  /  {row.bureau}  /  {row.role}</option>)}
       </select></div>
     </div></header>
-    <main id="main" className="main-shell" tabIndex="-1"><div className="page-heading"><div><p className="eyebrow">CASEBRIDGE / {eyebrow}</p><h1>{title}</h1><p className="page-description">{description}</p></div><span className="demo-pill"><span aria-hidden="true" />Synthetic demo data</span></div>
+    <main id="main" className="main-shell" tabIndex="-1"><div className="page-heading"><div><h1>{title}</h1><p className="page-description">{description}</p></div></div>
       {writePending ? <p role="status" className="save-progress">Saving changes… Please wait before switching users.</p> : null}
       <Suspense fallback={<Feedback title="Loading workspace" message="Preparing this view…" loading />}>{content}</Suspense>
-      <footer className="app-footer">CaseBridge <span aria-hidden="true">·</span> Synthetic demonstration records</footer>
+      <footer className="app-footer">Synthetic demo data</footer>
     </main>
   </>;
 }

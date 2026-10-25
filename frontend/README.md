@@ -178,10 +178,11 @@ the existing PostgreSQL-backed endpoints and are global for both demo roles.
 Report selection cancels the previous load; user changes remount the page and
 cancel any unfinished download. CSV requests use the same X-User-Id client,
 retain JSON HTTP errors, validate the CSV content type and clean up object URLs.
-Columns follow server order. Nulls, false and zero retain their distinct meanings.
+Visible report columns and browser-downloaded CSVs omit internal institution IDs,
+place public institution identity first, and preserve nulls, false and zero.
 
-Run the cumulative scripts/verify.ps1 from the repository root: expected 179
-backend tests and 40 Node tests. Then scripts/dev.ps1 starts the app for actual
+Run the cumulative scripts/verify.ps1 from the repository root: expected 188
+backend tests and 41 Node tests. Then scripts/dev.ps1 starts the app for actual
 browser clicks. Check all seven reports, real downloaded files, supervisor access,
 rapid switching, direct #reports reload, keyboard selection and narrow screens.
 The root README has the exact expected reference counts and clean setup commands.

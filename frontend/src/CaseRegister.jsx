@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { buildCaseCreate, buildCaseQuery, EMPTY_FILTERS, STATUSES, statusLabel } from './caseTools.js';
+import { buildCaseCreate, buildCaseQuery, EMPTY_FILTERS, STATUSES, statusLabel, formatDate } from './caseTools.js';
 import { CasesTable, ErrorNotice, Field, ResourceFeedback } from './Shared.jsx';
 import { useMutation, useResource } from './useResource.js';
 
@@ -46,6 +46,7 @@ export default function CaseRegister({ api, user, users, navigate, onBusy, onCre
   const [filterError, setFilterError] = useState(null);
   const [showEntry, setShowEntry] = useState(false);
   const allCases = useResource(api, '/cases');
+  const deadlineFlags = useResource(api, '/alerts');
   const filtered = useResource(api, query ? '/cases?' + query : null);
   const results = query ? filtered : allCases;
   const catalog = allCases.data ?? [];
@@ -60,7 +61,7 @@ export default function CaseRegister({ api, user, users, navigate, onBusy, onCre
   }
   function clear() { setDraft({ ...EMPTY_FILTERS }); setQuery(''); setFilterError(null); }
   return <div className="case-page">
-    <div className="section-title"><div><h2>Case register</h2><p>Search across bureaus. Write access follows your demo role and bureau.</p></div>
+    <div className="section-title"><p>Search across bureaus. Write access follows your demo role and bureau.</p>
       {user.role === 'officer' ? <button className="button" onClick={() => setShowEntry(true)} aria-expanded={showEntry} aria-controls="case-entry" disabled={showEntry}>New case</button> : <span className="role-badge">Read-only role</span>}
     </div>
     {showEntry ? <CaseEntry api={api} user={user} users={users} categories={categories} regions={regions} onBusy={onBusy} onCreated={onCreated} onCancel={() => setShowEntry(false)} /> : null}
@@ -79,7 +80,8 @@ export default function CaseRegister({ api, user, users, navigate, onBusy, onCre
       </div><div className="form-actions"><button className="button" type="submit">Apply filters</button><button className="button button-secondary" type="button" onClick={clear}>Clear filters</button></div><ErrorNotice error={filterError} /></form>
     </section>
     <section className="panel register-results" aria-labelledby="results-heading"><div className="section-title"><div><h2 id="results-heading">Cases</h2><p role="status">{results.status === 'ready' ? results.data.length + ' cases shown' : 'Fetching cases…'}</p></div><button className="button button-secondary" onClick={results.refresh}>Refresh register</button></div>
-      {results.status === 'ready' ? <CasesTable cases={results.data} navigate={navigate} /> : <ResourceFeedback resource={results} title="case register" />}
+      {deadlineFlags.status === 'ready' ? <p className="form-help">Deadline flags as of {formatDate(deadlineFlags.data.as_of)}.</p> : <ResourceFeedback resource={deadlineFlags} title="deadline flags" />}
+      {results.status === 'ready' ? <CasesTable cases={results.data} navigate={navigate} overdueIds={deadlineFlags.data?.overdue.map(record => record.id) ?? []} /> : <ResourceFeedback resource={results} title="case register" />}
     </section>
   </div>;
 }

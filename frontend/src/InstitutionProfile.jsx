@@ -7,7 +7,7 @@ export default function InstitutionProfile({ api, id, navigate }) {
   if (resource.status !== 'ready') return <ResourceFeedback resource={resource} title="institution profile" />;
   const profile = resource.data;
   return <div className="case-page">
-    <div className="section-title"><div><p className="eyebrow">INSTITUTION PROFILE</p><h2>{profile.name}</h2><p>{profile.aicte_id}</p></div><button className="button button-secondary" onClick={resource.refresh}>Refresh profile</button></div>
+    <div className="section-title"><div><h2>{profile.name}</h2><p>{profile.aicte_id}</p></div><button className="button button-secondary" onClick={resource.refresh}>Refresh profile</button></div>
     <section className="panel" aria-label="Institution details"><dl className="detail-grid">
       <div><dt>AICTE Permanent ID</dt><dd>{profile.aicte_id}</dd></div><div><dt>Region</dt><dd>{profile.region || 'Not recorded'}</dd></div>
       <div className="detail-wide"><dt>Address</dt><dd>{profile.address || 'Not recorded'}</dd></div>

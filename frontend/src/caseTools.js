@@ -74,7 +74,10 @@ export function buildCaseAction(form) {
 }
 
 export function formatDate(value) {
-  return value ? new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value + 'T00:00:00')) : 'Not recorded';
+  if (!value) return 'Not recorded';
+  const [year, month, day] = value.split('-');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return Number(day) + ' ' + months[Number(month) - 1] + ' ' + year;
 }
 export function formatTimestamp(value) {
   return value ? new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Not recorded';

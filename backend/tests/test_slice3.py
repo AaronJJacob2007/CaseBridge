@@ -266,6 +266,9 @@ def test_ack_requires_owner_and_followup_and_cannot_repeat(api, pending_request)
 
 
 def test_complete_cannot_repeat_and_stale_coordinate_choice_does_not_create(api, confirmed_link, pending_request):
+    assert api.request("POST", f"/coordination/{pending_request['id']}/ack", {
+        "owner_id": api.user("Anita Rao"), "follow_up_on": "2026-10-30",
+    }, api.user("Anita Rao"))[0] == 200
     path = f"/coordination/{pending_request['id']}/complete"
     assert api.request("POST", path, {}, api.user("Anita Rao"))[0] == 200
     assert api.request("POST", path, {}, api.user("Anita Rao"))[0] == 409
@@ -287,9 +290,12 @@ def test_target_must_be_other_linked_bureau(api, confirmed_link):
 def test_rejected_existing_link_stops_warning_but_does_not_auto_close_request(api, confirmed_link, pending_request):
     status, other_link = review(api, codes=("PGRC-101", "RB-210"))
     assert status == 200
+    assert api.request("POST", f"/coordination/{pending_request['id']}/ack", {
+        "owner_id": api.user("Anita Rao"), "follow_up_on": "2026-10-30",
+    }, api.user("Anita Rao"))[0] == 200
     assert review(api, review_state="rejected", reason="Unrelated incidents")[0] == 200
     assert post_check(api, other_link["id"])[1]["warning"] is False
-    assert api.db.get(CoordinationRequest, pending_request["id"]).status == "requested"
+    assert api.db.get(CoordinationRequest, pending_request["id"]).status == "acknowledged"
     status, result = api.request("POST", f"/coordination/{pending_request['id']}/complete", {}, api.user("Anita Rao"))
     assert status == 200 and result["status"] == "completed"
 

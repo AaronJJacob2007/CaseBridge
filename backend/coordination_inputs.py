@@ -32,6 +32,9 @@ class CoordinationCheck(BaseModel):
     action_type: str = Field(min_length=1)
     doc_category: str | None = None
     period: str | None = None
+    # Accepted as draft context, deliberately excluded from repeated-action keys.
+    # CoordinationCreate below still requires and validates the save target.
+    to_bureau: Bureau | None = None
 
     @field_validator("action_type", "doc_category", "period")
     @classmethod

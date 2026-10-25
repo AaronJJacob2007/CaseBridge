@@ -31,7 +31,7 @@ Migration: cases.raw_region nullable TEXT available
 PASS: Approved raw-region migration
 6 tables: action_log, case_links, cases, coordination_requests, institutions, users
 Seed: 6 users, 8 institutions, 30 cases
-179 passed in ...s
+188 passed in ...s
 PASS: Slice 0-8 regression tests
 PASS: Frontend production build
 PASS: HTTP /health (200; database ok)
@@ -56,7 +56,7 @@ PASS: HTTP seven JSON reports and downloadable CSVs
 PASS: Original Slice 4 regional acceptance
 PASS: Slice 4 HTTP acceptance checks
 PASS: Frontend proxy ready (5173 to 8000)
-PASS: Frontend overview, case, coordination and report checks (40 tests)
+PASS: Frontend overview, case, coordination and report checks (41 tests)
 Verification servers stopped; PostgreSQL left running.
 ~~~
 
@@ -323,7 +323,7 @@ POST /coordination/{id}/ack requires owner_id and follow_up_on. Only target-bure
 officers may acknowledge, and the owner must be an officer there. It transitions
 requested to acknowledged and records coord_ack on both histories. Acknowledged
 items still warn. POST /coordination/{id}/complete accepts {} or remarks; only
-the target bureau may complete a pending item. Completed/declined items do not
+the target bureau may complete a previously acknowledged pending item. Completed/declined items do not
 warn and cannot be completed again. Completion uses audit event update because
 the original schema has no coord_complete event. Rejecting a link does not
 silently close requests; target officers can still explicitly complete them.
@@ -376,7 +376,7 @@ prefixes in untrusted text without changing stored or JSON values.
 
 ## Tests, lifecycle and workflow
 
-There are 179 backend tests/cases and 40 Node tests, including checks through the real
+There are 188 backend tests/cases and 41 Node tests, including checks through the real
 Vite proxy. Five new rollback-isolated backend cases verify production frontend
 form payloads against PostgreSQL; the 13 new Node cases cover register/workspace
 behavior alongside the eight earlier overview checks. The approved region behavior
@@ -532,7 +532,7 @@ Cases: 30; pending: 10; under_process: 12; escalated: 2; transferred: 1; dispose
 Previous demo actions, links and coordination requests have been removed.
 ~~~
 
-Slice 8 cumulative expectations: 179 backend tests; 40 frontend tests; production
+Slice 8 cumulative expectations: 188 backend tests; 41 frontend tests; production
 build and all earlier HTTP checks. The three reset tests check reference recovery,
 repeatability, actual record preservation after outer rollback, seed-failure
 rollback and refusal of unexpected tables. Eleven new Node checks compare all
@@ -586,3 +586,103 @@ demo database and records an administrative audit. Unexpected structure, rows
 or dependent objects block removal. It does not reset saved work. The corrected
 refusal test explicitly rolls back its outer transaction and checks that the
 test table is gone afterward. The verifier also rechecks six tables after pytest.
+
+
+## Post-Slice 8: institutional UI polish
+
+The follow-up UI uses formal navy/white styling, restrained status accents,
+consistent controls and readable tables. Overview brings the selected bureau's
+cross-bureau institution overlaps, past-due acknowledgments and overdue cases
+ahead of global metrics. Three institution/case links show real records; the
+full metrics, chart and supervisor region totals remain available below.
+The acknowledgment count includes only requested items with a past follow-up
+(as in the existing API), not every pending request. Overlap counts include
+reviewed institutions and are not labelled unreviewed work.
+
+The overlap list uses a compact four-column case table and a comparison chooser.
+Comparison displays a shared exact institution identity, bureau/status cards,
+case dates, next actions and expandable histories. Confirm/Reject and recorded
+request controls use the existing endpoints/permissions. The duplicate warning
+shows the existing request ID, status, matching fields, owner and follow-up,
+then Coordinate/Proceed separately with a reason. A static four-step guide
+explains the workflow; it does not imply automatic progression or completion.
+There is no new dependency, backend endpoint or database mutation in this polish.
+
+Stop dev with Ctrl+C and run the same cumulative commands:
+
+~~~powershell
+.\scripts\verify.ps1
+if ($?) { .\scripts\dev.ps1 }
+~~~
+
+Expect the existing 188 backend tests, 41 frontend checks and a production build.
+Browser checks: compare Overview as Anita/Rahul/supervisor; check scope labels,
+counts and institution/case links; open PGRC-101/RB-201 and check the shared ID,
+bureau cards, review and histories; exercise a repeated-request warning and
+acknowledgment; check supervisor forms remain hidden. Use a narrow window and
+keyboard navigation. Status/deadline reference totals should stay unchanged.
+No reset is needed for these checks. Browser layout and live regression results
+still require user verification. Commit after verification:
+ui: polish institutional overview and coordination screens
+
+
+The request form now offers the standard Document request action from a selector,
+preventing the Document Request capitalization mismatch seen in browser testing.
+Other action (specify) retains custom action types with explicit exact-matching
+help. Changing the selection clears a stale warning. Document category and period
+remain exact-match inputs; backend matching and saved records are unchanged.
+Browser check: as Anita select Document request, enter Fee records / 2025-26,
+target RB and Check only against Rahul's still-pending request. Expect the
+matching request warning. Selecting Other action reveals a required custom field;
+switching back restores the canonical Document request value.
+
+
+## Review fixes: issue 1 - repeated actions across bureau directions
+
+The check endpoint now accepts optional to_bureau as draft context but excludes
+it from the matching keys. The form includes its selected target in prechecks.
+Matching continues to use institution, currently confirmed candidate link,
+action_type, doc_category, period and requested/acknowledged/in_progress status.
+Requester and target bureau are not matching keys. Existing institution-wide
+matching across confirmed pairs at the same institution is retained. Saving still
+validates that the target is the other linked bureau and rechecks for duplicates.
+No seed, schema, original expected outcome or saved record changes are required.
+
+Three rollback PostgreSQL regressions create Rahul's Document request / Fee records
+/ 2025-26 to PGRC, then check Anita's identical draft to RB. They cover all three
+pending statuses, the complete existing-request warning, no precheck writes and
+409 on a duplicate save. Cumulative verification expects 188 backend tests and 41
+frontend checks. Issue 1 verification passed; subsequent review fixes are tracked below.
+DESIGN.md was not present in the repository when issue 1 was inspected.
+
+
+## Review fixes: issue 2 - acknowledgment before completion
+
+Completion now requires acknowledged/in_progress status and a non-null
+acknowledged_at timestamp, after the existing officer/target-bureau checks.
+Requested or unacknowledged records return 409: Acknowledge the request before
+marking it completed. Completed/declined items still return 409 on repeated
+completion. A rejected link does not close requests: previously acknowledged
+items can still be completed, while an unacknowledged item must have its link
+confirmed again before acknowledgment. No existing records are auto-acknowledged.
+
+The completion form is hidden until these conditions hold. Its UI helper also
+checks target bureau and officer role; server authorization remains authoritative.
+Six rollback PostgreSQL cases test rejection before acknowledgment (including
+rejected links and status-only bypasses), success after acknowledgment/in-progress,
+no case-status changes and repeat-completion rejection. Two older tests now
+acknowledge first to follow the explicitly revised rule. A Node check verifies
+completion visibility across states, roles and bureaus. Expect 188 backend tests
+and 41 frontend checks. Seed files and expected_outcomes.md are unchanged.
+
+Browser check: open a requested item as its target-bureau officer. Acknowledge
+and assign responsibility is visible; Mark completed is absent. Choose an owner
+and follow-up, acknowledge, then confirm completion remarks/Mark completed appear.
+Reload before completion to verify the acknowledged state persists. Complete it,
+then verify the controls disappear and the request reads completed. Supervisors
+and source-bureau officers have no completion control at either stage.
+Review issues 3-6 are addressed in the UI pass: overdue items sort by days overdue,
+open overdue cases show a red badge, and shared styling uses centralized tokens.
+Case histories remain scoped to their own case; no history query was changed.
+Reports and browser-downloaded CSVs omit internal institution IDs. Browser layout
+and cumulative regression checks still require verification.
