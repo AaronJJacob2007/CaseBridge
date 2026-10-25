@@ -10,7 +10,7 @@ export function Feedback({ title, message, onRetry, loading = false }) {
 }
 export function ResourceFeedback({ resource, title }) {
   return resource.status === 'error'
-    ? <Feedback title={'Could not load ' + title} message={resource.error.message} onRetry={resource.refresh} />
+    ? <Feedback title={'Could not load ' + title} message={(resource.error.status ? resource.error.status + ': ' : '') + resource.error.message} onRetry={resource.refresh} />
     : <Feedback title={'Loading ' + title} message="Fetching current records…" loading />;
 }
 export function StatusBadge({ status }) { return <span className={'status-badge status-' + status}>{statusLabel(status)}</span>; }

@@ -3,6 +3,12 @@ import csv
 from io import StringIO
 from urllib.request import urlopen
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from backend.config import get_demo_today
+from backend.db import engine
+from backend.models import CoordinationRequest
 from backend.analytics import REPORT_TYPES
 from backend.verify_http import BASE, get
 
@@ -28,7 +34,33 @@ def check_alerts():
     }.items():
         assert {row["case_code"] for row in data[name]} == codes, name
     assert {row["aicte_id"] for row in data["overlap"]} == {"INST-0001", "INST-0003", "INST-0006", "INST-0008"}
-    assert data["unacknowledged"] == []
+    with Session(engine) as db:
+        check_unacknowledged(data, db)
+
+
+def check_unacknowledged(data, db):
+    """Validate live alerts against persisted requests, including browser work.
+
+    Seed-only ASGI tests still require an empty list. Live verification must
+    also accept legitimate past-due requests without completing/deleting them.
+    Derive expected IDs independently from all stored requests in Python.
+    """
+    today = get_demo_today()
+    assert data["as_of"] == today.isoformat(), "Alert reference date differs"
+    requests = db.scalars(select(CoordinationRequest)).all()
+    expected = sorted((request for request in requests
+                       if request.status == "requested" and request.acknowledged_at is None
+                       and request.follow_up_on is not None and request.follow_up_on < today),
+                      key=lambda request: (request.follow_up_on, request.id))
+    actual = data["unacknowledged"]
+    assert [row["id"] for row in actual] == [request.id for request in expected], "Unacknowledged alert IDs/order differ from saved requests"
+    for row, request in zip(actual, expected):
+        for field in ("link_id", "institution_id", "requested_by", "to_bureau", "action_type",
+                      "doc_category", "period", "status", "owner_id"):
+            assert row[field] == getattr(request, field), f"Request {request.id}: {field} differs"
+        assert row["acknowledged_at"] is None
+        assert row["follow_up_on"] == request.follow_up_on.isoformat()
+        assert row["days_past_follow_up"] == (today - request.follow_up_on).days
 
 
 def check_reports():

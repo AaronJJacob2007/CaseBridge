@@ -33,15 +33,23 @@ export function createApi(userId, { baseUrl = '' } = {}) {
   if (!Number.isSafeInteger(Number(userId)) || Number(userId) <= 0) {
     throw new ApiError('Select a valid demo user.');
   }
-  return async function api(path, { method = 'GET', body, signal } = {}) {
+  return async function api(path, { method = 'GET', body, signal, responseType = 'json' } = {}) {
     if (!path.startsWith('/') || path.startsWith('//')) {
       throw new ApiError('Invalid service path.');
     }
+    if (!['json', 'blob'].includes(responseType)) throw new ApiError('Invalid response type.');
     const headers = { 'X-User-Id': String(userId) };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
-    return readResponse(await fetch(baseUrl + '/api' + path, {
+    const response = await fetch(baseUrl + '/api' + path, {
       method, headers, signal,
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-    }));
+    });
+    if (responseType === 'blob' && response.ok) {
+      if (!/^text\/csv(?:;|$)/i.test(response.headers.get('content-type') || '')) {
+        throw new ApiError('The service did not return a CSV file. Please retry.', response.status);
+      }
+      return response.blob();
+    }
+    return readResponse(response);
   };
 }

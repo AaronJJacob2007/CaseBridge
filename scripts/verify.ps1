@@ -1,4 +1,4 @@
-# Slice 7 plus all Slice 0-6 regression checks.
+# Slice 8 plus all Slice 0-7 regression checks. Reset tests roll back; no persistent reset runs.
 # Includes the user-approved raw_region migration. Run from PowerShell.
 Set-Location -LiteralPath 'C:\SIH26\CaseBridge'
 $ErrorActionPreference = 'Stop'
@@ -101,12 +101,17 @@ Invoke-Check 'Node and npm available' {
 }
 # PASS: Node and npm available (use Node 22.12+; your installed Node 24 is supported).
 
-Invoke-Check 'Slice 0-7 regression tests' {
+Invoke-Check 'Slice 0-8 regression tests' {
     .\.venv\Scripts\python.exe -m pytest backend\tests -q
     if ($LASTEXITCODE -ne 0) { throw 'pytest failed.' }
 }
-# PASS: pytest reports 175 passed in ...s (duration varies).
-# PASS: Slice 0-7 regression tests
+# PASS: pytest reports 179 passed in ...s (duration varies).
+# PASS: Slice 0-8 regression tests
+
+Invoke-Check 'Test rollback preserved six database tables' {
+    .\.venv\Scripts\python.exe -m backend.check_db
+    if ($LASTEXITCODE -ne 0) { throw 'Regression tests left unexpected schema changes.' }
+}
 
 Invoke-Check 'Frontend dependencies installed' {
     Push-Location frontend
@@ -227,15 +232,15 @@ try {
     }
     # PASS: Frontend proxy ready (5173 to 8000)
 
-    Invoke-Check 'Frontend overview, case and coordination checks (29 tests)' {
+    Invoke-Check 'Frontend overview, case, coordination and report checks (40 tests)' {
         Push-Location frontend
         try {
             npm.cmd test
-            if ($LASTEXITCODE -ne 0) { throw 'Frontend overview/case/coordination checks failed.' }
+            if ($LASTEXITCODE -ne 0) { throw 'Frontend overview/case/coordination/report checks failed.' }
         } finally { Pop-Location }
     }
-    # Node reports 29 tests, 29 pass, 0 fail.
-    # PASS: Frontend overview, case and coordination checks (29 tests)
+    # Node reports 40 tests, 40 pass, 0 fail.
+    # PASS: Frontend overview, case, coordination and report checks (40 tests)
 } finally {
     if ($null -ne $frontendProcess -and -not $frontendProcess.HasExited) {
         Stop-Process -Id $frontendProcess.Id

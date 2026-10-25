@@ -158,3 +158,11 @@ h1 { font-size: clamp(25px, 2.5vw, 34px); line-height: 1.25; letter-spacing: -.9
 .record-grid { display: grid; gap: .8rem; margin: 1rem 0; }
 .record-grid dt { font-size: .8rem; color: #526575; }
 .record-grid dd { margin: .2rem 0 0; }
+
+/* Slice 8: accessible report selection and horizontally scrollable exports. */
+.report-picker { max-width: 28rem; margin-bottom: 1rem; }
+.report-toolbar { flex-wrap: wrap; gap: 1rem; }
+.report-toolbar .form-actions { margin-top: 0; flex-wrap: wrap; }
+.report-table th, .report-table td { min-width: 6rem; }
+.main-shell, .case-page, .panel { min-width: 0; }
+@media (max-width: 540px) { .main-nav { gap: 12px; }.report-toolbar .form-actions { width: 100%; } }

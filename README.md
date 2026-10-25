@@ -1,9 +1,9 @@
-# CaseBridge - Slice 7
+# CaseBridge - Slice 8
 
 Synthetic data only. Slices 0-4 provide the backend and Slice 5 the overview.
 Slice 6 adds the filtered case register/entry form, workspace with actions/history,
 and institution profiles. Slice 7 adds overlap comparison, manual link reviews,
-repeated-request warnings, acknowledgment and completion. Frontend: 5173; backend: 8000. User verification and a
+repeated-request warnings, acknowledgment and completion. Slice 8 adds seven report tables, CSV downloads and an explicit local demo reset. Frontend: 5173; backend: 8000. User verification and a
 browser checklist are required before acceptance or commit.
 
 ## Verify on Windows PowerShell
@@ -31,8 +31,8 @@ Migration: cases.raw_region nullable TEXT available
 PASS: Approved raw-region migration
 6 tables: action_log, case_links, cases, coordination_requests, institutions, users
 Seed: 6 users, 8 institutions, 30 cases
-175 passed in ...s
-PASS: Slice 0-7 regression tests
+179 passed in ...s
+PASS: Slice 0-8 regression tests
 PASS: Frontend production build
 PASS: HTTP /health (200; database ok)
 PASS: HTTP /cases (30 cases; all eight filters)
@@ -56,7 +56,7 @@ PASS: HTTP seven JSON reports and downloadable CSVs
 PASS: Original Slice 4 regional acceptance
 PASS: Slice 4 HTTP acceptance checks
 PASS: Frontend proxy ready (5173 to 8000)
-PASS: Frontend overview, case and coordination checks (29 tests)
+PASS: Frontend overview, case, coordination and report checks (40 tests)
 Verification servers stopped; PostgreSQL left running.
 ~~~
 
@@ -123,8 +123,7 @@ read-only role, institution/bureau counts and regional coverage. Main status
 cards and the chart explicitly remain global for either role. No fixture users,
 seed IDs or case counts are embedded in production UI code. Data requests run
 in parallel and cancel on selection change; stale users' snapshots are guarded.
-Loading/errors/empty users have retry feedback. Slice 6 adds case forms/workspaces below. Link-review UI and the Reports tab remain
-reserved for their later slices.
+Loading/errors/empty users have retry feedback. Slice 6 adds case forms/workspaces below. Link review and coordination are described below; the Reports tab is available in Slice 8.
 
 Quick checklist: Anita Rao -> PGRC 17 cases, 7 assigned open; Rahul Mehta -> RB 11,
 5 assigned open; Dr. R. K. Sharma -> supervisor/read-only, 25 open, 8 institutions,
@@ -377,7 +376,7 @@ prefixes in untrusted text without changing stored or JSON values.
 
 ## Tests, lifecycle and workflow
 
-There are 175 backend tests/cases and 29 Node tests, including checks through the real
+There are 179 backend tests/cases and 40 Node tests, including checks through the real
 Vite proxy. Five new rollback-isolated backend cases verify production frontend
 form payloads against PostgreSQL; the 13 new Node cases cover register/workspace
 behavior alongside the eight earlier overview checks. The approved region behavior
@@ -466,3 +465,124 @@ the 30-case catalog unchanged. Check-only calls never save requests. If a reques
 already exists from an earlier attempt, expect the matching warning and use
 Coordinate, or complete that request as its target before repeating a fresh run.
 Stop dev with Ctrl+C before running verification again.
+
+
+## Slice 8: clean setup, reports and explicit reset
+
+Prerequisites on a clean Windows machine: Git, Python 3.11+ on PATH, Node.js
+22.12+ (Node 24 supported), npm and Docker Desktop running Linux containers.
+Clone this repository into C:\SIH26\CaseBridge, then open PowerShell:
+
+~~~powershell
+cd C:\SIH26\CaseBridge
+.\scripts\verify.ps1
+if ($?) { .\scripts\dev.ps1 }
+~~~
+
+Verification creates the local .env with a generated password if missing, installs
+the declared Python/npm dependencies, starts the one PostgreSQL service, migrates,
+seeds missing rows, runs all checks and stops its temporary servers. If setting
+up manually, copy .env.example to .env and replace its placeholder password before
+first database initialization. Keep DATABASE_URL and POSTGRES_PASSWORD consistent;
+do not change credentials on an existing volume. No extra library is needed.
+Dev prints http://127.0.0.1:5173; open it yourself and keep the terminal running.
+Ctrl+C stops the two development servers. PostgreSQL persists until stopped.
+
+Reports is a lazy-loaded #reports page available to either role. Choose any of
+institution-wise, bureau-wise, region-wise, status-wise, ageing buckets, disposal
+rate or overlapping cases. Tables follow the server's ordered columns and show
+its as_of date. Reports cover all bureaus. Missing IDs are labelled Not supplied,
+unresolved identity is No, zero remains zero and an open-ended age bucket says
+No upper limit. No report guesses an institution identity. Refresh requests new
+saved data. Downloads fetch the actual server CSV using X-User-Id and download
+as casebridge-<type>.csv; failures retain their HTTP detail and offer another
+attempt. Changing report/user cancels abandoned reads and downloads. Empty reports
+show a message and can download their headers. Screen readers receive labelled
+selection, table captions, column/row headings and feedback; tables scroll on
+small screens. Resource errors also display their HTTP status.
+
+### Reset only when you want to discard saved demo work
+
+The following command permanently replaces the local synthetic demo records,
+including notes, repaired statuses, audits, link reviews and coordination requests.
+Stop development with Ctrl+C first, keep Docker Desktop running, then run:
+
+~~~powershell
+.\scripts\reset_demo.ps1
+if ($?) { .\scripts\verify.ps1 }
+if ($?) { .\scripts\dev.ps1 }
+~~~
+
+The PowerShell wrapper loads .env and refuses while ports 8000/5173 are in use.
+The Python entry point also restricts the target to localhost/127.0.0.1/::1 and
+the database named by POSTGRES_DB. It drops only the six named tables, executes
+the unchanged schema.sql, applies the approved raw_region migration, then seeds
+from the unchanged CSVs. Unexpected public tables or external dependencies cause
+refusal/failure; no CASCADE, volume deletion, table outside the six or new service
+is used. A transaction/advisory lock protects recreation; failures restore the
+pre-reset tables and records. All previous demo work is intentionally removed
+only on successful commit. Routine verification never invokes the persistent
+reset. Reset tests use outer rollback transactions to restore the user's records.
+
+Expected reset output:
+
+~~~text
+PASS: Demo reset committed (six tables, approved raw_region migration, seed loaded).
+Cases: 30; pending: 10; under_process: 12; escalated: 2; transferred: 1; disposed: 5; open: 25
+Previous demo actions, links and coordination requests have been removed.
+~~~
+
+Slice 8 cumulative expectations: 179 backend tests; 40 frontend tests; production
+build and all earlier HTTP checks. The three reset tests check reference recovery,
+repeatability, actual record preservation after outer rollback, seed-failure
+rollback and refusal of unexpected tables. Eleven new Node checks compare all
+seven actual report JSON/CSV tables, supervisor visibility, download errors,
+cancellation and display/route helpers. These are not browser click tests.
+
+Browser walkthrough:
+1. Open Reports as Anita. Institution-wise shows 9 rows (8 institutions plus
+   unresolved PGRC-109); its missing ID stays Not supplied and identity No.
+2. Check bureau totals PGRC 17, RB 11, OTHER 2; region totals Central 5, East 6,
+   North 2, South 5, West 12; status totals 10/12/2/1/5 in server order.
+3. Ageing bucket totals are 0, 6, 6, 4, 9. Overall disposal rate is 16.67%.
+   Overlapping cases has 15 rows at four institutions.
+4. Download each report and open the CSV. Verify filename, column order and
+   totals. Switch report/user quickly and check #reports survives refresh.
+5. Switch to Dr. Sharma: all seven reports/downloads remain readable. Test
+   keyboard selection and narrow-window horizontal table scrolling.
+6. Optionally stop the backend in a manual two-terminal session and Refresh:
+   expect an error with Try again; restore the backend and retry. Do not stop
+   unrelated processes. Normal empty case searches retain their existing message.
+7. After the explicit reset, Overview returns to the Slice 4 counts; PGRC-111
+   is pending, links/requests are empty and only initial/migration audit history
+   remains. Verification adds its usual denied audit rows. Reload the app after
+   reset because old case/user IDs and hash links may no longer identify records.
+
+The assistant ran the local build and test collection only; PostgreSQL/reset,
+proxy tests, actual downloads and browser layout require the user's run.
+Commit only after those checks are green:
+slice 8: add report exports and transactional demo reset
+
+
+Live alert acceptance also verifies persisted unacknowledged request IDs, order,
+fields, follow-up date and overdue-day count against PostgreSQL. It does not
+assume that browser-created requests are absent, delete them or complete them.
+The original seed-only assertion (no unacknowledged requests) and all case-count
+expectations remain intact. A rollback regression checks a saved overdue request,
+missing/duplicate/wrong-age alerts and removal after acknowledgment.
+
+
+If an earlier Slice 8 verification left slice8_unexpected_table, stop dev, load
+.env with scripts/load_env.ps1, then explicitly run:
+
+~~~powershell
+. .\scripts\load_env.ps1
+.\.venv\Scripts\python.exe -m backend.cleanup_slice8_test_table
+if ($?) { .\scripts\verify.ps1 }
+~~~
+
+The cleanup removes only that exact empty single-column test table on the local
+demo database and records an administrative audit. Unexpected structure, rows
+or dependent objects block removal. It does not reset saved work. The corrected
+refusal test explicitly rolls back its outer transaction and checks that the
+test table is gone afterward. The verifier also rechecks six tables after pytest.

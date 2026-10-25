@@ -169,3 +169,26 @@ the 30-case catalog unchanged. Check-only calls never save requests. If a reques
 already exists from an earlier attempt, expect the matching warning and use
 Coordinate, or complete that request as its target before repeating a fresh run.
 Stop dev with Ctrl+C before running verification again.
+
+
+## Slice 8 Reports and exports
+
+Open #reports from the Reports navigation item. All seven report tables come from
+the existing PostgreSQL-backed endpoints and are global for both demo roles.
+Report selection cancels the previous load; user changes remount the page and
+cancel any unfinished download. CSV requests use the same X-User-Id client,
+retain JSON HTTP errors, validate the CSV content type and clean up object URLs.
+Columns follow server order. Nulls, false and zero retain their distinct meanings.
+
+Run the cumulative scripts/verify.ps1 from the repository root: expected 179
+backend tests and 40 Node tests. Then scripts/dev.ps1 starts the app for actual
+browser clicks. Check all seven reports, real downloaded files, supervisor access,
+rapid switching, direct #reports reload, keyboard selection and narrow screens.
+The root README has the exact expected reference counts and clean setup commands.
+
+scripts/reset_demo.ps1 is an explicit destructive operation for the local synthetic
+database. Stop dev first. It removes all saved case work, links, coordination and
+audits, recreates six tables, applies the approved migration and reseeds. It is
+never invoked by the UI or routine verification; reset regression tests roll back
+all table recreation. Follow the root README reset walkthrough when ready to
+replace the demo. Reload afterward; old IDs may be invalid.
