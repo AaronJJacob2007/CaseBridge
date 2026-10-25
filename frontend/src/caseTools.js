@@ -8,6 +8,9 @@ export const institutionLink = (record) => record.identity_resolved && record.in
 export function parseRoute(hash) {
   const value = hash.replace(/^#\/?/, '');
   if (!value || value === 'main' || value === 'overview') return { kind: 'overview', key: 'overview' };
+  if (value === 'overlaps') return { kind: 'overlaps', key: value };
+  const pair = value.match(/^overlaps\/([1-9]\d*)\/([1-9]\d*)$/);
+  if (pair && pair.slice(1).every(v => Number.isSafeInteger(Number(v))) && pair[1] !== pair[2]) return { kind: 'overlaps', key: value, pair: pair.slice(1).map(Number) };
   if (value === 'cases') return { kind: 'register', key: 'cases' };
   const match = value.match(/^(cases|institutions)\/([1-9]\d*)$/);
   if (match && Number.isSafeInteger(Number(match[2]))) {

@@ -1,8 +1,9 @@
-# CaseBridge - Slice 6
+# CaseBridge - Slice 7
 
 Synthetic data only. Slices 0-4 provide the backend and Slice 5 the overview.
 Slice 6 adds the filtered case register/entry form, workspace with actions/history,
-and institution profiles. Frontend: 5173; backend: 8000. User verification and a
+and institution profiles. Slice 7 adds overlap comparison, manual link reviews,
+repeated-request warnings, acknowledgment and completion. Frontend: 5173; backend: 8000. User verification and a
 browser checklist are required before acceptance or commit.
 
 ## Verify on Windows PowerShell
@@ -30,8 +31,8 @@ Migration: cases.raw_region nullable TEXT available
 PASS: Approved raw-region migration
 6 tables: action_log, case_links, cases, coordination_requests, institutions, users
 Seed: 6 users, 8 institutions, 30 cases
-169 passed in ...s
-PASS: Slice 0-6 regression tests
+175 passed in ...s
+PASS: Slice 0-7 regression tests
 PASS: Frontend production build
 PASS: HTTP /health (200; database ok)
 PASS: HTTP /cases (30 cases; all eight filters)
@@ -55,7 +56,7 @@ PASS: HTTP seven JSON reports and downloadable CSVs
 PASS: Original Slice 4 regional acceptance
 PASS: Slice 4 HTTP acceptance checks
 PASS: Frontend proxy ready (5173 to 8000)
-PASS: Frontend overview and case checks (21 tests)
+PASS: Frontend overview, case and coordination checks (29 tests)
 Verification servers stopped; PostgreSQL left running.
 ~~~
 
@@ -73,7 +74,7 @@ not a claim that this version has passed live verification. Test descriptions ar
 
 Both temporary verification servers are stopped afterward, leaving PostgreSQL running. Logs
 are backend/verify.stdout.log and backend/verify.stderr.log, ignored by Git.
-Live checks intentionally leave four denied audit rows per full run; cases,
+Live checks intentionally leave five denied audit rows per full run; cases,
 links and requests are preserved. A first migration adds one schema audit plus
 one update audit for each backfilled source region. Routine reruns add no
 migration/backfill audit entries when nothing changes.
@@ -376,13 +377,12 @@ prefixes in untrusted text without changing stored or JSON values.
 
 ## Tests, lifecycle and workflow
 
-There are 169 backend tests/cases and 21 Node integration tests through the real
+There are 175 backend tests/cases and 29 Node tests, including checks through the real
 Vite proxy. Five new rollback-isolated backend cases verify production frontend
 form payloads against PostgreSQL; the 13 new Node cases cover register/workspace
 behavior alongside the eight earlier overview checks. The approved region behavior
 is checked against the original target; the migration is tested for repeatability,
-audit correctness, exact-code mapping and preservation. All data mutations in
-tests roll back. Tests never skip, use SQLite, or commit test records permanently.
+audit correctness, exact-code mapping and preservation. Successful test writes roll back. Live denied-write checks preserve denied audit rows. Tests never skip, use SQLite, or commit test records permanently.
 ASGI tests use Python's standard library instead of an extra HTTP client package.
 Multi-process concurrency/load tests and automated browser rendering are not claimed;
 frontend click-through verification is performed by the user.
@@ -405,3 +405,64 @@ a slice is done. Fix failures from actual user output and wait for explicit
 permission to proceed to the next slice. Commit/push only after verification is
 green. Preserve all four original input files. The nullable raw_region migration
 is the explicit user-approved exception to matching the original runtime schema.
+
+## Slice 7 verification scope
+
+No new endpoint, migration or dependency is needed. Frontend production helpers
+build review/coordination/acknowledgment payloads. Every request submission calls
+the real check endpoint first, including warning choices, and retains a 409
+warning payload if a competing save happens after checking. Edited matching
+fields invalidate the displayed warning. A changed/finished request requires a
+fresh check rather than silently creating another request.
+
+Six added backend tests exercise those production JS helpers and the submission
+orchestration against actual ASGI/PostgreSQL responses inside rollback
+transactions, including all eight reference steps, Coordinate reuse, a separate
+reason, rejection, supervisor denied audit and a competing save. Eight added Node
+tests cover overlap payloads, real reload/role context, input guards, routes and
+a real supervisor 403. Existing acceptance assertions remain unchanged.
+
+The API test fixture temporarily clears coordination requests/links within its
+outer rollback transaction, then restores the user's persisted coordination
+state at teardown. This keeps the existing seed-state assertions isolated from
+manual walkthrough records; it does not delete live requests. Verify while dev
+is stopped so the transactional tests do not compete with browser writes.
+
+## Slice 7 browser walkthrough
+
+Use Demo login Rahul Mehta. Open Overlap & coordination.
+1. Expect the exact banner "Potential Overlapping Cases - Coordination Required"
+   and INST-0001, INST-0003, INST-0006, INST-0008, with real cases, bureaus,
+   statuses and officers. Unresolved PGRC-109 must not appear.
+2. At INST-0001 choose PGRC-101 and RB-201, Compare cases, then Confirm link.
+   Both case histories record the review; neither case status changes.
+3. As Rahul, enter action type Document request, document category Fee records,
+   period 2025-26, target PGRC. Check only: no matching pending request.
+   Check and save request: a requested item appears. Leave initial follow-up
+   blank for this walkthrough so it does not change the original alert counts.
+4. Switch to Anita Rao (same comparison remains). Enter the same action,
+   category and period; target is now RB. Check only: warning shows the saved
+   request, requester, target, owner and status. Coordinate reuses it without
+   creating another. Proceed separately with a blank reason shows an error.
+   A successful separate-request save with reason is covered by rollback tests.
+5. Change period to 2024-25 and Check only: no warning; nothing saved.
+   Restore 2025-26, change category to Salary records and Check only: no warning.
+6. Anita acknowledges Rahul's request: owner Anita Rao, follow-up 2026-10-30.
+   Expect acknowledged, owner/date persisted. Repeat Fee records / 2025-26:
+   warning still appears. Reload and reselect Anita (Demo login resets on reload).
+   Confirmed review, request, acknowledgment and histories remain.
+7. Anita enters completion remarks and Mark completed. Check Fee records /
+   2025-26 again: no matching pending request, unless you deliberately created
+   another pending request. Neither case status changes.
+8. As Rahul at INST-0003 compare PGRC-104 / RB-203, reject with Unrelated incidents.
+   Reload: rejected review/reason remains, and INST-0003 still appears in overlaps.
+9. Switch to Dr. R. K. Sharma: side-by-side data and requests are readable;
+   review/request/acknowledgment/completion forms are absent. Actual attempted
+   supervisor writes are tested through the real API: 403 and persisted denied
+   audit. UI error notices preserve HTTP status and server message.
+
+Only links, requests and audit history change. Keep case statuses/deadlines and
+the 30-case catalog unchanged. Check-only calls never save requests. If a request
+already exists from an earlier attempt, expect the matching warning and use
+Coordinate, or complete that request as its target before repeating a fresh run.
+Stop dev with Ctrl+C before running verification again.

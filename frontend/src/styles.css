@@ -142,3 +142,19 @@ h1 { font-size: clamp(25px, 2.5vw, 34px); line-height: 1.25; letter-spacing: -.9
 @media (max-width: 1050px) { .main-nav { gap: 18px; }.header-inner { column-gap: 22px; }.brand small { max-width: 180px; }.demo-login { min-width: 235px; } }
 @media (max-width: 840px) { .header-inner { flex-wrap: wrap; }.demo-login { width: 100%; }.main-nav { margin-left: auto; }.form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 540px) { .form-grid, .detail-grid { grid-template-columns: 1fr; }.field-wide, .detail-wide { grid-column: auto; }.case-page > .section-title { align-items: flex-start; }.main-nav { width: 100%; margin-left: 0; }.history-top { align-items: flex-start; flex-direction: column; }.institution-history summary > * { margin-right: 8px; } }
+
+/* Slice 7: comparison and coordination */
+.comparison-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.coordination-controls { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 1rem; }
+.compare-chooser { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-top: 1rem; }
+.compare-chooser .form-field { flex: 1; min-width: 12rem; }
+.coord-warning { background: #fff7e4; border: 1px solid #b77916; border-radius: .6rem; padding: 1rem; margin-top: 1rem; }
+.request-item { border-top: 1px solid #dce5eb; padding: 1rem 0; }
+.request-item form + form { margin-top: 1rem; }
+.record-grid dd { overflow-wrap: anywhere; }
+.main-nav { flex-wrap: wrap; }
+@media (max-width: 800px) { .comparison-grid { grid-template-columns: 1fr; } }
+
+.record-grid { display: grid; gap: .8rem; margin: 1rem 0; }
+.record-grid dt { font-size: .8rem; color: #526575; }
+.record-grid dd { margin: .2rem 0 0; }

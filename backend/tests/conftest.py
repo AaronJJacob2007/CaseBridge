@@ -38,6 +38,13 @@ def api():
         try:
             seed_demo(session)
             session.commit()
+            # Browser reviews/requests must survive verification. Isolate test
+            # coordination state inside the outer transaction; rollback restores it.
+            from sqlalchemy import delete
+            from backend.models import CoordinationRequest, CaseLink
+            session.execute(delete(CoordinationRequest))
+            session.execute(delete(CaseLink))
+            session.commit()
             app.dependency_overrides[get_db] = test_db
             yield DatabaseApi(session)
         finally:

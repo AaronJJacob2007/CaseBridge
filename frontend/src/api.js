@@ -1,8 +1,9 @@
 export class ApiError extends Error {
-  constructor(message, status = 0) {
+  constructor(message, status = 0, data = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.data = data;
   }
 }
 
@@ -18,7 +19,7 @@ async function readResponse(response) {
     const detail = Array.isArray(data?.detail)
       ? data.detail.map((item) => item.msg).join('; ')
       : data?.detail;
-    throw new ApiError(detail || 'The request could not be completed.', response.status);
+    throw new ApiError(detail || 'The request could not be completed.', response.status, data);
   }
   return data;
 }

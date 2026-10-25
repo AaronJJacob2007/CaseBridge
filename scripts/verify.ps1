@@ -1,4 +1,4 @@
-# Slice 6 plus all Slice 0-5 regression checks.
+# Slice 7 plus all Slice 0-6 regression checks.
 # Includes the user-approved raw_region migration. Run from PowerShell.
 Set-Location -LiteralPath 'C:\SIH26\CaseBridge'
 $ErrorActionPreference = 'Stop'
@@ -101,12 +101,12 @@ Invoke-Check 'Node and npm available' {
 }
 # PASS: Node and npm available (use Node 22.12+; your installed Node 24 is supported).
 
-Invoke-Check 'Slice 0-6 regression tests' {
+Invoke-Check 'Slice 0-7 regression tests' {
     .\.venv\Scripts\python.exe -m pytest backend\tests -q
     if ($LASTEXITCODE -ne 0) { throw 'pytest failed.' }
 }
-# PASS: pytest reports 169 passed in ...s (duration varies).
-# PASS: Slice 0-6 regression tests
+# PASS: pytest reports 175 passed in ...s (duration varies).
+# PASS: Slice 0-7 regression tests
 
 Invoke-Check 'Frontend dependencies installed' {
     Push-Location frontend
@@ -227,15 +227,15 @@ try {
     }
     # PASS: Frontend proxy ready (5173 to 8000)
 
-    Invoke-Check 'Frontend overview and case checks (21 tests)' {
+    Invoke-Check 'Frontend overview, case and coordination checks (29 tests)' {
         Push-Location frontend
         try {
             npm.cmd test
-            if ($LASTEXITCODE -ne 0) { throw 'Frontend overview/case checks failed.' }
+            if ($LASTEXITCODE -ne 0) { throw 'Frontend overview/case/coordination checks failed.' }
         } finally { Pop-Location }
     }
-    # Node reports 21 tests, 21 pass, 0 fail.
-    # PASS: Frontend overview and case checks (21 tests)
+    # Node reports 29 tests, 29 pass, 0 fail.
+    # PASS: Frontend overview, case and coordination checks (29 tests)
 } finally {
     if ($null -ne $frontendProcess -and -not $frontendProcess.HasExited) {
         Stop-Process -Id $frontendProcess.Id

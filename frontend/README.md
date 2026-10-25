@@ -1,9 +1,9 @@
-# CaseBridge frontend - Slice 6
+# CaseBridge frontend - Slice 7
 
 React + React DOM, Vite and recharts only. Plain CSS, native fetch and built-in
 Node tests; no new package or router dependency was added. Native hash routes:
-Overview, case register, case workspace and institution profile. Link review and
-coordination UI are reserved for Slice 7; Reports/reset UI for Slice 8.
+Overview, case register, case workspace, institution profile and overlap comparison.
+Reports/reset UI is reserved for Slice 8.
 
 ## Run from Windows PowerShell
 
@@ -16,8 +16,8 @@ cd C:\SIH26\CaseBridge
 if ($?) { .\scripts\dev.ps1 }
 ~~~
 
-Expected key results: 169 backend tests passed; production build successful;
-21 frontend tests passed; PASS: Frontend overview and case checks (21 tests).
+Expected key results: 175 backend tests passed; production build successful;
+29 frontend tests passed; PASS: Frontend overview, case and coordination checks (29 tests).
 All earlier HTTP checks remain. Verification stops its temporary servers. Dev
 starts both again for your browser check, prints http://127.0.0.1:5173 and keeps
 running until Ctrl+C. Open the URL yourself; no browser is opened automatically.
@@ -130,3 +130,42 @@ and document reference, transfer independence, and exact untrimmed ID behavior.
 All test writes roll back. Earlier backend permission/audit tests remain unchanged.
 No new Python, UI, router, form or testing package was added. Route-level loading
 splits the previously large overview/chart code from the other workspace pages.
+
+## Slice 7 browser walkthrough
+
+Use Demo login Rahul Mehta. Open Overlap & coordination.
+1. Expect the exact banner "Potential Overlapping Cases - Coordination Required"
+   and INST-0001, INST-0003, INST-0006, INST-0008, with real cases, bureaus,
+   statuses and officers. Unresolved PGRC-109 must not appear.
+2. At INST-0001 choose PGRC-101 and RB-201, Compare cases, then Confirm link.
+   Both case histories record the review; neither case status changes.
+3. As Rahul, enter action type Document request, document category Fee records,
+   period 2025-26, target PGRC. Check only: no matching pending request.
+   Check and save request: a requested item appears. Leave initial follow-up
+   blank for this walkthrough so it does not change the original alert counts.
+4. Switch to Anita Rao (same comparison remains). Enter the same action,
+   category and period; target is now RB. Check only: warning shows the saved
+   request, requester, target, owner and status. Coordinate reuses it without
+   creating another. Proceed separately with a blank reason shows an error.
+   A successful separate-request save with reason is covered by rollback tests.
+5. Change period to 2024-25 and Check only: no warning; nothing saved.
+   Restore 2025-26, change category to Salary records and Check only: no warning.
+6. Anita acknowledges Rahul's request: owner Anita Rao, follow-up 2026-10-30.
+   Expect acknowledged, owner/date persisted. Repeat Fee records / 2025-26:
+   warning still appears. Reload and reselect Anita (Demo login resets on reload).
+   Confirmed review, request, acknowledgment and histories remain.
+7. Anita enters completion remarks and Mark completed. Check Fee records /
+   2025-26 again: no matching pending request, unless you deliberately created
+   another pending request. Neither case status changes.
+8. As Rahul at INST-0003 compare PGRC-104 / RB-203, reject with Unrelated incidents.
+   Reload: rejected review/reason remains, and INST-0003 still appears in overlaps.
+9. Switch to Dr. R. K. Sharma: side-by-side data and requests are readable;
+   review/request/acknowledgment/completion forms are absent. Actual attempted
+   supervisor writes are tested through the real API: 403 and persisted denied
+   audit. UI error notices preserve HTTP status and server message.
+
+Only links, requests and audit history change. Keep case statuses/deadlines and
+the 30-case catalog unchanged. Check-only calls never save requests. If a request
+already exists from an earlier attempt, expect the matching warning and use
+Coordinate, or complete that request as its target before repeating a fresh run.
+Stop dev with Ctrl+C before running verification again.
