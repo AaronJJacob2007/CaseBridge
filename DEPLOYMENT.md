@@ -5,6 +5,9 @@ with a dedicated free Neon database in Singapore. Public `/api/health` confirms
 the API and database are available without a Vercel login. The initial database
 contains 30 synthetic cases, eight institutions and six demo users.
 
+The GitHub repository is connected to this Vercel project. Pushes to `main`
+automatically deploy to production, with deployment status reported to GitHub.
+
 Verification: 214 local backend tests and 44 local frontend checks passed. The
 43 applicable frontend/API checks also passed against the public URL; the
 development-only Vite document check was excluded from the cloud run. Report
