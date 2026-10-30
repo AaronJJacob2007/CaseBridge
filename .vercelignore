@@ -1,0 +1,17 @@
+.git
+.agents
+skills-lock.json
+.env
+.env.*
+.venv
+node_modules
+frontend/node_modules
+frontend/dist
+.pytest_cache
+**/__pycache__
+**/*.log
+output
+slide_work
+tmp
+backend/tests
+frontend/tests

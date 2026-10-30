@@ -24,7 +24,7 @@ function Priorities({ view }) {
     ['unacknowledged', 'Past-due acknowledgments', '#overlaps', 'Open coordination requests'],
     ['overdue', 'Overdue cases', '#cases', 'Open case register'],
   ];
-  return <section aria-labelledby="priorities-heading"><div className="section-title"><div><h2 id="priorities-heading">Cases and requests requiring attention</h2><p>{view.scopeLabel}. Select a count to open its workspace.</p></div></div>
+  return <section aria-labelledby="priorities-heading"><div className="section-title"><div><h2 id="priorities-heading">Needs your attention</h2><p>{view.scopeLabel}. Open a group below to review the records.</p></div></div>
     <div className="priority-grid">{cards.map(([key, label, href, action]) => <a className="priority-card" key={key} href={href} aria-label={action + ': ' + view.alerts[key].length}><span className="summary-label">{label}</span><p className="summary-number">{view.alerts[key].length}</p></a>)}</div>
   </section>;
 }
@@ -35,14 +35,14 @@ function AttentionList({ view }) {
     <section className="panel" aria-labelledby="coordination-list-heading"><div className="section-title"><div><h2 id="coordination-list-heading">Institutions to review</h2><p>{view.scopeLabel}. Showing {overlaps.length} of {view.alerts.overlap.length}.</p></div><a href="#overlaps">View all</a></div>
       {!overlaps.length ? <p className="compact-empty">No cross-bureau overlaps in this view.</p> : <ul className="work-list">{overlaps.map(group => <li key={group.institution_id}><div><a href={'#institutions/' + group.institution_id}>{group.institution_name}</a><span className="work-list-meta">{group.aicte_id} / {group.cases.length} open cases / {[...new Set(group.cases.map(row => row.bureau))].join(', ')}</span></div></li>)}</ul>}
     </section>
-    <section className="panel" aria-labelledby="overdue-list-heading"><div className="section-title"><div><h2 id="overdue-list-heading">Past their expected date</h2><p>{view.scopeLabel}. Most overdue first. Showing {overdue.length} of {view.alerts.overdue.length}.</p></div></div>
+    <section className="panel" aria-labelledby="overdue-list-heading"><div className="section-title"><div><h2 id="overdue-list-heading">Overdue cases</h2><p>{view.scopeLabel}. Oldest deadlines first. Showing {overdue.length} of {view.alerts.overdue.length}.</p></div></div>
       {!overdue.length ? <p className="compact-empty">No overdue cases in this view.</p> : <ul className="work-list">{overdue.map(record => <li key={record.id}><div><a href={'#cases/' + record.id}>{record.case_code}</a><strong>{record.institution_name}</strong><span className="work-list-meta">Due {formatDate(record.expected_disposal_on)} / {record.officer || 'Unassigned'}</span></div><span className="days-overdue">{record.days_overdue} days overdue</span></li>)}</ul>}
     </section>
   </div>;
 }
 export default function Overview({ view, onRefresh }) {
   return <div className="overview-content">
-    <div className="view-toolbar"><p>Reference date: <strong>{formatDate(view.summary.as_of)}</strong></p><button className="button button-secondary" onClick={onRefresh}>Refresh overview</button></div>
+    <div className="view-toolbar"><p>Demo reference date: <strong>{formatDate(view.summary.as_of)}</strong></p><button className="button button-secondary" onClick={onRefresh}>Refresh overview</button></div>
     <RolePanel view={view} /><Priorities view={view} /><AttentionList view={view} />
     <section aria-labelledby="register-heading"><div className="section-title"><div><h2 id="register-heading">All cases</h2><p>Current totals across all bureaus</p></div><span className="quiet-label">{view.summary.unresolved_cases} unresolved {view.summary.unresolved_cases === 1 ? 'identity' : 'identities'}</span></div><dl className="metric-grid">{METRICS.map(([key, label]) => <div className="metric-card" key={key}><dt>{label}</dt><dd>{view.summary[key]}</dd></div>)}</dl></section>
     <div className="overview-columns">

@@ -28,7 +28,7 @@ export function RequestForm({ api, link, target, onBusy, onSaved }) {
   const mutation = useMutation(onBusy);
   function field(key, value) { setForm(old => ({ ...old, [key]: value })); setWarning(null); setNotice(''); }
   function checkOnly() {
-    mutation.run(() => checkCoordination(api, buildCoordination(link.id, form)), result => { setWarning(result.warning ? result : null); setNotice(result.warning ? '' : 'No matching pending request. Nothing saved.'); });
+    mutation.run(() => checkCoordination(api, buildCoordination(link.id, form)), result => { setWarning(result.warning ? result : null); setNotice(result.warning ? '' : 'No matching request is pending. You can save this request when you are ready.'); });
   }
   function submit(decision) {
     mutation.run(() => submitCoordination(api, buildCoordination(link.id, form, decision)), result => {
@@ -39,7 +39,7 @@ export function RequestForm({ api, link, target, onBusy, onSaved }) {
       }
     });
   }
-  return <section className="panel request-form-panel"><div className="section-title"><div><h2>Request coordination</h2><p>Each submission checks for a matching pending request before saving.</p></div><span className="review-state review-confirmed">Confirmed link</span></div>
+  return <section className="panel request-form-panel"><div className="section-title"><div><h2>Request coordination</h2><p>Tell the other bureau what you need. We’ll check whether the same request is already pending before saving.</p></div><span className="review-state review-confirmed">Confirmed link</span></div>
     <form onSubmit={event => { event.preventDefault(); submit(); }}><fieldset className="request-fields" disabled={mutation.busy}><legend className="sr-only">Coordination request details</legend><div className="form-grid">
       <Field label="Action type *"><select required value={customAction ? '__custom__' : form.action_type} onChange={event => {
         const custom = event.target.value === '__custom__';
@@ -51,9 +51,9 @@ export function RequestForm({ api, link, target, onBusy, onSaved }) {
       <Field label="Target bureau"><select value={form.to_bureau} onChange={event => field('to_bureau', event.target.value)}><option value={target}>{target}</option></select></Field>
       <Field label="Initial follow-up (optional)"><input type="date" value={form.follow_up_on} onChange={event => field('follow_up_on', event.target.value)} /></Field>
     </div><p className="request-match-help">To check an existing request, use the same document category and period, including capitalization.</p><div className="form-actions request-actions"><button className="button button-secondary" type="button" onClick={checkOnly}>Check only</button><button className="button" type="submit">Check and save request</button></div>
-    {warning ? <section className="coord-warning" role="alert" aria-labelledby="duplicate-warning-title"><div className="warning-heading"><div><h3 id="duplicate-warning-title">Matching pending request found</h3><p>Review the existing request before raising another for the same action, documents and period.</p></div></div>
+    {warning ? <section className="coord-warning" role="alert" aria-labelledby="duplicate-warning-title"><div className="warning-heading"><div><h3 id="duplicate-warning-title">This request may already be covered</h3><p>Another request for the same action, documents and period is still pending. Review it below before sending a separate request.</p></div></div>
       <div className="existing-request"><div className="section-title"><strong>Existing request #{warning.existing_request.id}</strong><RequestStatus status={warning.existing_request.status} /></div><RequestSummary request={warning.existing_request} /></div>
-      <p className="warning-guidance">Choose Coordinate to use this request. A separate request requires a recorded reason.</p>
+      <p className="warning-guidance">Choose Coordinate to work with the existing request. If you need a separate request, explain why so the other bureau has the context.</p>
       <Field label="Reason for proceeding separately"><textarea rows="2" value={form.proceed_reason} onChange={event => setForm(old => ({ ...old, proceed_reason: event.target.value }))} placeholder="e.g. Different supporting documents are required" /></Field>
       <div className="form-actions"><button type="button" className="button" onClick={() => submit('coordinate')}>Coordinate</button><button type="button" className="button button-secondary" onClick={() => submit('proceed_separately')}>Proceed separately (reason required)</button></div>
     </section> : null}</fieldset></form>

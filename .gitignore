@@ -13,3 +13,9 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+.vercel/
+.agents/
+skills-lock.json
+output/
+slide_work/
+tmp/
