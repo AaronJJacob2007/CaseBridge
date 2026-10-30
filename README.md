@@ -141,7 +141,7 @@ The existing `scripts/verify.ps1` and `scripts/dev.ps1` helpers provide a combin
 backend/                API routes, business rules, models and regression tests
 frontend/               React application, shared styles and frontend checks
 scripts/                Windows setup, verification and development helpers
-docs/                   Product screenshot and archived implementation notes
+docs/                   Product screenshot
 schema.sql              Original six-table PostgreSQL schema
 seed_cases.csv          Synthetic complaint records
 seed_users.csv          Synthetic demo users
@@ -157,7 +157,7 @@ DEPLOYMENT.md           Hosting setup and deployment verification
 - Monthly and quarterly reports show the current outcomes of cases received in that period, not historical period-end backlog or the number of disposals made during that period.
 - No live AICTE data integration or real complaint data is included.
 
-See the [deployment guide](DEPLOYMENT.md) for hosting details and the [development history](docs/development-history.md) for earlier implementation notes. Historical test counts in the archive are superseded by the verification section above.
+See the [deployment guide](DEPLOYMENT.md) for hosting details and deployment verification.
 
 ## Acknowledgments
 
