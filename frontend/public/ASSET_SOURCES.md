@@ -6,3 +6,6 @@ https://www.aicte.gov.in/sites/default/files/inline-images/aicte_logo.png
 The original image is stored unchanged. The header clips the image's empty
 horizontal space with CSS. Its use identifies the problem-statement context;
 CaseBridge is a student-built SIH prototype, not an official AICTE service.
+
+The browser tab icon embeds the same image in an SVG viewport that crops the
+unused horizontal space around the emblem.

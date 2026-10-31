@@ -1,10 +1,10 @@
 :root {
   --color-text: #0B2545;
   --color-muted: #5B6675;
-  --color-page: #F1F3F6;
+  --color-page: #F5F6F8;
   --color-surface: #FFFFFF;
   --color-border: #C9D1DA;
-  --color-accent: #087D79;
+  --color-accent: #174B77;
   --color-pending: #F59E0B;
   --color-pending-tint: #FDEBC8;
   --color-error: #D64545;
@@ -23,7 +23,7 @@
   --space-16: 16px;
   --space-24: 24px;
   --space-32: 32px;
-  --radius: 6px;
+  --radius: 3px;
   --border-width: 1px;
   --focus-width: 2px;
   --size-content: 1280px;
