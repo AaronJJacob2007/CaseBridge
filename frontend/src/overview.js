@@ -18,10 +18,10 @@ export function buildOverview(user, summary, alerts, cases) {
   };
 }
 
-export async function loadOverview(api, { signal } = {}) {
-  const [user, summary, alerts, cases] = await Promise.all([
-    api('/demo/me', { signal }), api('/dashboard/summary', { signal }),
-    api('/alerts', { signal }), api('/cases', { signal }),
+export async function loadOverview(api, { signal, user: currentUser } = {}) {
+  const [user, overview] = await Promise.all([
+    currentUser ? Promise.resolve(currentUser) : api('/demo/me', { signal }),
+    api('/dashboard/overview', { signal }),
   ]);
-  return buildOverview(user, summary, alerts, cases);
+  return buildOverview(user, overview.summary, overview.alerts, overview.cases);
 }

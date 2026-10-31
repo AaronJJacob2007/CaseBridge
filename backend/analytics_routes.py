@@ -9,6 +9,7 @@ from fastapi.encoders import jsonable_encoder
 from backend.analytics import REPORT_TYPES, alerts, dashboard_summary, report
 from backend.case_routes import Database
 from backend.performance import performance_report
+from backend.queries import query_cases
 
 router = APIRouter()
 
@@ -31,6 +32,12 @@ def safe_csv_cell(value):
 @router.get("/dashboard/summary")
 def get_dashboard(db: Database):
     return dashboard_summary(db)
+
+
+@router.get("/dashboard/overview")
+def get_overview(db: Database):
+    rows = query_cases(db)
+    return {"summary": dashboard_summary(db, rows), "alerts": alerts(db, rows), "cases": rows}
 
 
 @router.get("/alerts")

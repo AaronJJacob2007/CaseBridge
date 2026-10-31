@@ -65,7 +65,7 @@ export default function App() {
   else if (identity.status !== 'ready') content = <ResourceFeedback resource={identity} title="demo workspace" />;
   else if (route.kind === 'reports') content = <ReportsPage key={pageKey} api={api} />;
   else if (route.kind === 'overlaps') content = <OverlapPage key={pageKey} api={api} user={user} users={catalog.users} pair={route.pair} navigate={navigate} onBusy={setWritePending} />;
-  else if (route.kind === 'overview') content = <OverviewPage key={pageKey} api={api} />;
+  else if (route.kind === 'overview') content = <OverviewPage key={pageKey} api={api} user={user} />;
   else if (route.kind === 'register') content = <CaseRegister key={pageKey} api={api} user={user} users={catalog.users} navigate={navigate} onBusy={setWritePending} onCreated={created} />;
   else if (route.kind === 'case') content = <CaseWorkspace key={pageKey} api={api} user={user} users={catalog.users} id={route.id} navigate={navigate} onBusy={setWritePending} />;
   else if (route.kind === 'institution') content = <InstitutionProfile key={pageKey} api={api} id={route.id} navigate={navigate} />;

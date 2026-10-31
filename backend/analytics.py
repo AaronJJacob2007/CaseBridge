@@ -65,9 +65,10 @@ def case_flags(rows, today):
     }
 
 
-def dashboard_summary(db):
+def dashboard_summary(db, rows=None):
     today = get_demo_today()
-    rows = query_cases(db)
+    if rows is None:
+        rows = query_cases(db)
     flags = case_flags(rows, today)
     return {
         "as_of": today, **status_counts(rows),
@@ -79,9 +80,10 @@ def dashboard_summary(db):
     }
 
 
-def alerts(db):
+def alerts(db, rows=None):
     today = get_demo_today()
-    rows = query_cases(db)
+    if rows is None:
+        rows = query_cases(db)
     unacknowledged = db.scalars(select(CoordinationRequest).where(
         CoordinationRequest.status == "requested",
         CoordinationRequest.acknowledged_at.is_(None),
