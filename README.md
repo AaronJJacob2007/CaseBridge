@@ -1,6 +1,6 @@
 # CaseBridge
 
-A shared workspace for monitoring institutional complaints and coordinating across bureaus.
+**Institution complaint monitoring and coordination across bureaus.**
 
 CaseBridge brings institution-related complaints into a shared workspace so bureau officers can identify related cases, coordinate document requests, and follow up with clear ownership. Built as a Smart India Hackathon 2026 prototype, it keeps each case's status and history separate while helping teams avoid repeated work.
 
