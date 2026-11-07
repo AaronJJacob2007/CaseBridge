@@ -6,13 +6,14 @@ from sqlalchemy import select
 
 from backend.config import get_demo_today
 from backend.coordination_queries import request_payload
-from backend.models import CaseLink, CoordinationRequest
+from backend.models import CaseLink, CoordinationRequest, Institution
 from backend.queries import query_cases, query_overlaps
 
 STATUSES = ("pending", "under_process", "escalated", "transferred", "disposed")
 REPORT_TYPES = (
     "institution-wise", "bureau-wise", "region-wise", "status-wise",
     "ageing-buckets", "disposal-rate", "overlapping-cases",
+    "coordination-requests",
 )
 AGE_BUCKETS = (("0-7 days", 0, 7), ("8-30 days", 8, 30),
                ("31-60 days", 31, 60), ("61-90 days", 61, 90), ("91+ days", 91, None))
@@ -105,6 +106,19 @@ def report(db, report_type):
     if report_type not in REPORT_TYPES:
         raise ValueError("Unknown report type")
     today = get_demo_today()
+    if report_type == "coordination-requests":
+        columns = ["aicte_id", "institution_name", "action_type", "doc_category", "period", "to_bureau", "status", "requester", "owner", "follow_up_on"]
+        records = db.execute(select(CoordinationRequest, Institution).join(
+            Institution, Institution.id == CoordinationRequest.institution_id
+        ).where(CoordinationRequest.status.in_(("requested", "acknowledged", "in_progress"))).order_by(
+            CoordinationRequest.follow_up_on.asc().nulls_last(), CoordinationRequest.id
+        ))
+        rows = []
+        for request, institution in records:
+            item = request_payload(db, request)
+            rows.append({**{key: item[key] for key in columns if key not in ("aicte_id", "institution_name")},
+                         "aicte_id": institution.aicte_id, "institution_name": institution.name})
+        return {"type": report_type, "as_of": today, "columns": columns, "rows": rows}
     cases = query_cases(db)
     count_columns = ["total", *STATUSES, "open"]
     if report_type == "institution-wise":

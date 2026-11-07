@@ -48,7 +48,7 @@ function ReportView({ api, report, selection }) {
   const columns = visibleReportColumns(data.columns);
   return <section className="panel" aria-labelledby="report-title">
     <div className="section-title report-toolbar"><div><h2 id="report-title">{report.label}</h2><p>{report.description}</p><p className="form-help">As of {formatDate(data.as_of)}  /  {data.rows.length} rows  /  All bureaus</p></div>
-      <div className="form-actions"><button className="button button-secondary" onClick={resource.refresh} disabled={download.busy}>Refresh report</button><button className="button" onClick={downloadCsv} disabled={download.busy}>{download.busy ? 'Preparing CSVÃ¢â‚¬Â¦' : 'Download CSV'}</button></div>
+      <div className="form-actions"><button className="button button-secondary" onClick={resource.refresh} disabled={download.busy}>Refresh report</button><button className="button" onClick={downloadCsv} disabled={download.busy}>{download.busy ? 'Preparing CSV…' : 'Download CSV'}</button></div>
     </div>
     {data.counting_rules ? <div className="report-rules"><h3>Counting rules</h3><p>{data.counting_rules}</p>{data.partial_period ? <p>This period is in progress. Receipts stop at the reference date.</p> : null}</div> : null}
     <ErrorNotice error={download.error} />
