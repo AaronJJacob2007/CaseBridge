@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { buildCaseCreate, buildCaseQuery, EMPTY_FILTERS, STATUSES, statusLabel, formatDate } from './caseTools.js';
 import { CasesTable, ErrorNotice, Field, ResourceFeedback } from './Shared.jsx';
 import { useMutation, useResource } from './useResource.js';
+import CaseImport from './CaseImport.jsx';
 
 const FILTER_LABELS = { institution_name: 'Institution', aicte_id: 'AICTE ID', case_code: 'Case code', bureau: 'Bureau', region: 'Region', category: 'Category', status: 'Status', received_from: 'Received from', received_to: 'Received to' };
 
@@ -47,6 +48,7 @@ export default function CaseRegister({ api, user, users, navigate, onBusy, onCre
   const [query, setQuery] = useState('');
   const [filterError, setFilterError] = useState(null);
   const [showEntry, setShowEntry] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const allCases = useResource(api, '/cases');
   const deadlineFlags = useResource(api, '/alerts');
   const filtered = useResource(api, query ? '/cases?' + query : null);
@@ -72,9 +74,10 @@ export default function CaseRegister({ api, user, users, navigate, onBusy, onCre
   }
   return <div className="case-page">
     <div className="section-title"><p>Search across bureaus. Write access follows your demo role and bureau.</p>
-      {user.role === 'officer' ? <button className="button" onClick={() => setShowEntry(true)} aria-expanded={showEntry} aria-controls="case-entry" disabled={showEntry}>New case</button> : <span className="role-badge">Read-only role</span>}
+      {user.role === 'officer' ? <div className="form-actions"><button className="button button-secondary" onClick={() => setShowImport(true)} disabled={showImport}>Import CSV</button><button className="button" onClick={() => setShowEntry(true)} aria-expanded={showEntry} aria-controls="case-entry" disabled={showEntry}>New case</button></div> : <span className="role-badge">Read-only role</span>}
     </div>
     {showEntry ? <CaseEntry api={api} user={user} users={users} categories={categories} regions={regions} onBusy={onBusy} onCreated={onCreated} onCancel={() => setShowEntry(false)} /> : null}
+    {showImport ? <CaseImport api={api} user={user} onBusy={onBusy} onSaved={() => { allCases.refresh(); if (query) filtered.refresh(); deadlineFlags.refresh(); }} onCancel={() => setShowImport(false)} /> : null}
     <section className="panel" aria-labelledby="filters-heading">
       <h2 id="filters-heading">Filter cases</h2>
       <form onSubmit={apply} className="filter-form"><div className="form-grid">

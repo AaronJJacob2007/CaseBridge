@@ -9,10 +9,25 @@ from backend.case_inputs import CaseAction, CaseCreate
 from backend.case_service import add_case_action, case_detail, create_case, institution_profile
 from backend.dependencies import get_db, get_demo_user
 from backend.models import User
+from backend.case_import import ImportRequest, import_preview, import_valid
 
 router = APIRouter()
 Database = Annotated[Session, Depends(get_db)]
 DemoUser = Annotated[User, Depends(get_demo_user)]
+
+
+@router.post("/cases/import/preview")
+def preview_import(data: ImportRequest, db: Database, actor: DemoUser):
+    return import_preview(db, actor, data.csv_text)
+
+
+@router.post("/cases/import")
+def commit_import(data: ImportRequest, db: Database, actor: DemoUser):
+    try:
+        return import_valid(db, actor, data.csv_text)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="A case code changed since preview; review the file again")
 
 
 @router.post("/cases", status_code=201)
