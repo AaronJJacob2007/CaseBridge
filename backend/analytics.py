@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from backend.config import get_demo_today
 from backend.coordination_queries import request_payload
-from backend.models import CoordinationRequest
+from backend.models import CaseLink, CoordinationRequest
 from backend.queries import query_cases, query_overlaps
 
 STATUSES = ("pending", "under_process", "escalated", "transferred", "disposed")
@@ -84,17 +84,20 @@ def alerts(db, rows=None):
     today = get_demo_today()
     if rows is None:
         rows = query_cases(db)
-    unacknowledged = db.scalars(select(CoordinationRequest).where(
-        CoordinationRequest.status == "requested",
-        CoordinationRequest.acknowledged_at.is_(None),
+    due = db.execute(select(CoordinationRequest, CaseLink).join(CaseLink, CoordinationRequest.link_id == CaseLink.id).where(
+        CoordinationRequest.status.in_(("requested", "acknowledged", "in_progress")),
         CoordinationRequest.follow_up_on.is_not(None),
-        CoordinationRequest.follow_up_on < today,
-    ).order_by(CoordinationRequest.follow_up_on, CoordinationRequest.id))
+        CoordinationRequest.follow_up_on <= today + timedelta(days=7),
+    ).order_by(CoordinationRequest.follow_up_on, CoordinationRequest.id)).all()
+    follow_ups = [{**request_payload(db, request), "case_a": link.case_a, "case_b": link.case_b,
+                   "days_until_follow_up": (request.follow_up_on - today).days}
+                  for request, link in due]
     return {
         "as_of": today, "overlap": query_overlaps(db), **case_flags(rows, today),
-        "unacknowledged": [{**request_payload(db, request),
-                             "days_past_follow_up": (today - request.follow_up_on).days}
-                            for request in unacknowledged],
+        "unacknowledged": [{**item, "days_past_follow_up": -item["days_until_follow_up"]}
+                            for item in follow_ups if item["status"] == "requested"
+                            and item["acknowledged_at"] is None and item["days_until_follow_up"] < 0],
+        "coordination_follow_ups": follow_ups,
     }
 
 

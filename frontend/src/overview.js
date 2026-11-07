@@ -8,6 +8,7 @@ export function buildOverview(user, summary, alerts, cases) {
     overdue: forBureau(alerts.overdue),
     escalated: forBureau(alerts.escalated),
     unacknowledged: supervisor ? alerts.unacknowledged : alerts.unacknowledged.filter((row) => row.to_bureau === user.bureau),
+    coordination_follow_ups: supervisor ? alerts.coordination_follow_ups : alerts.coordination_follow_ups.filter((row) => row.to_bureau === user.bureau),
   };
   return {
     user, summary, supervisor, alerts: visibleAlerts,

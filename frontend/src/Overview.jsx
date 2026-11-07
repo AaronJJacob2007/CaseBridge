@@ -40,10 +40,16 @@ function AttentionList({ view }) {
     </section>
   </div>;
 }
+function CoordinationFollowUps({ view }) {
+  const requests = view.alerts.coordination_follow_ups;
+  return <section className="panel" aria-labelledby="coordination-followups"><div className="section-title"><div><h2 id="coordination-followups">Coordination follow-ups</h2><p>{view.scopeLabel} · Overdue and due within seven days, based on the demo reference date.</p></div><a href="#overlaps">Review overlaps</a></div>
+    {!requests.length ? <p className="compact-empty">No coordination follow-ups due in this view.</p> : <ul className="work-list">{requests.map(request => <li key={request.id}><div><a href={'#overlaps/' + request.case_a + '/' + request.case_b}>Request #{request.id}</a><strong>{request.action_type}{request.doc_category ? ' · ' + request.doc_category : ''}</strong><span className="work-list-meta">{request.status.replaceAll('_', ' ')} · Owner: {request.owner || 'Awaiting assignment'} · {request.to_bureau} · Follow-up: {formatDate(request.follow_up_on)}</span></div><span className={request.days_until_follow_up < 0 ? 'days-overdue' : 'quiet-label'}>{request.days_until_follow_up < 0 ? Math.abs(request.days_until_follow_up) + ' days overdue' : request.days_until_follow_up === 0 ? 'Due today' : 'Due in ' + request.days_until_follow_up + ' days'}</span></li>)}</ul>}
+  </section>;
+}
 export default function Overview({ view, onRefresh }) {
   return <div className="overview-content">
     <div className="view-toolbar"><p>Demo reference date: <strong>{formatDate(view.summary.as_of)}</strong></p><button className="button button-secondary" onClick={onRefresh}>Refresh overview</button></div>
-    <RolePanel view={view} /><Priorities view={view} /><AttentionList view={view} />
+    <RolePanel view={view} /><Priorities view={view} /><AttentionList view={view} /><CoordinationFollowUps view={view} />
     <section aria-labelledby="register-heading"><div className="section-title"><div><h2 id="register-heading">All cases</h2><p>Current totals across all bureaus</p></div><span className="quiet-label">{view.summary.unresolved_cases} unresolved {view.summary.unresolved_cases === 1 ? 'identity' : 'identities'}</span></div><dl className="metric-grid">{METRICS.map(([key, label]) => <div className="metric-card" key={key}><dt>{label}</dt><dd>{view.summary[key]}</dd></div>)}</dl></section>
     <div className="overview-columns">
       <section className="panel" aria-labelledby="workload-heading"><div className="section-title"><h2 id="workload-heading">Bureau workload</h2><span className="quiet-label">All bureaus</span></div><WorkloadChart data={view.summary.bureau_wise} /></section>

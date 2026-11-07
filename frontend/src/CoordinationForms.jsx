@@ -20,6 +20,15 @@ export function RequestSummary({ request }) {
   </dl>;
 }
 
+function RequestHistory({ request }) {
+  const date = value => value ? formatDate(value.slice(0, 10)) : 'Date unavailable';
+  return <div className="request-history"><h4>Request history</h4><ol>
+    <li><strong>Requested</strong> · {date(request.created_at)} · {request.requester || 'Officer not recorded'} → {request.to_bureau}</li>
+    {request.acknowledged_at ? <li><strong>Acknowledged</strong> · {date(request.acknowledged_at)} · Assigned to {request.owner || 'an officer'}</li> : null}
+    {request.status === 'completed' ? <li><strong>Completed</strong> · See case history for completion details.</li> : null}
+  </ol></div>;
+}
+
 export function RequestForm({ api, link, target, onBusy, onSaved }) {
   const [form, setForm] = useState({ action_type: '', doc_category: '', period: '', to_bureau: target, follow_up_on: '', proceed_reason: '' });
   const [customAction, setCustomAction] = useState(false);
@@ -70,7 +79,7 @@ export function RequestItem({ request, user, users, api, confirmed, onBusy, onSa
   const allowed = user.role === 'officer' && user.bureau === request.to_bureau;
   const pending = ['requested', 'acknowledged', 'in_progress'].includes(request.status);
   const completable = canCompleteRequest(user, request);
-  return <article className="request-item"><div className="section-title"><h3>Coordination request #{request.id}</h3><RequestStatus status={request.status} /></div><RequestSummary request={request} />
+  return <article className="request-item"><div className="section-title"><h3>Coordination request #{request.id}</h3><RequestStatus status={request.status} /></div><RequestSummary request={request} /><RequestHistory request={request} />
     {allowed && request.status === 'requested' && confirmed ? <form className="acknowledgment-form" onSubmit={event => {
       event.preventDefault(); mutation.run(() => api('/coordination/' + request.id + '/ack', { method: 'POST', body: buildAcknowledgment(owner, date) }), onSaved);
     }}><fieldset className="request-fields" disabled={mutation.busy}><legend>Acknowledge and assign responsibility</legend><div className="form-grid">
