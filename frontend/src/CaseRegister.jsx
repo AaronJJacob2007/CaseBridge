@@ -3,6 +3,8 @@ import { buildCaseCreate, buildCaseQuery, EMPTY_FILTERS, STATUSES, statusLabel, 
 import { CasesTable, ErrorNotice, Field, ResourceFeedback } from './Shared.jsx';
 import { useMutation, useResource } from './useResource.js';
 
+const FILTER_LABELS = { institution_name: 'Institution', aicte_id: 'AICTE ID', case_code: 'Case code', bureau: 'Bureau', region: 'Region', category: 'Category', status: 'Status', received_from: 'Received from', received_to: 'Received to' };
+
 function CaseEntry({ api, user, users, categories, regions, onBusy, onCreated, onCancel }) {
   const [form, setForm] = useState({ case_code: '', aicte_id: '', institution_name: '', raw_region: '',
     officer_id: String(user.id), category: '', description: '', received_on: '', status: 'pending',
@@ -60,6 +62,14 @@ export default function CaseRegister({ api, user, users, navigate, onBusy, onCre
     catch (error) { setFilterError(error); }
   }
   function clear() { setDraft({ ...EMPTY_FILTERS }); setQuery(''); setFilterError(null); }
+  const appliedFilters = [...new URLSearchParams(query).entries()];
+  function removeFilter(key) {
+    const params = new URLSearchParams(query);
+    params.delete(key);
+    setDraft({ ...EMPTY_FILTERS, ...Object.fromEntries(params.entries()) });
+    setQuery(params.toString());
+    setFilterError(null);
+  }
   return <div className="case-page">
     <div className="section-title"><p>Search across bureaus. Write access follows your demo role and bureau.</p>
       {user.role === 'officer' ? <button className="button" onClick={() => setShowEntry(true)} aria-expanded={showEntry} aria-controls="case-entry" disabled={showEntry}>New case</button> : <span className="role-badge">Read-only role</span>}
@@ -80,6 +90,8 @@ export default function CaseRegister({ api, user, users, navigate, onBusy, onCre
       </div><div className="form-actions"><button className="button" type="submit">Apply filters</button><button className="button button-secondary" type="button" onClick={clear}>Clear filters</button></div><ErrorNotice error={filterError} /></form>
     </section>
     <section className="panel register-results" aria-labelledby="results-heading"><div className="section-title"><div><h2 id="results-heading">Cases</h2><p role="status">{results.status === 'ready' ? results.data.length + ' cases shown' : 'Fetching cases…'}</p></div><button className="button button-secondary" onClick={results.refresh}>Refresh register</button></div>
+      {appliedFilters.length ? <div className="active-filters" aria-label="Applied filters"><strong>Applied filters:</strong>{appliedFilters.map(([key, value]) => <button type="button" key={key} className="filter-chip" onClick={() => removeFilter(key)} aria-label={'Remove ' + FILTER_LABELS[key] + ' filter'}>{FILTER_LABELS[key]}: {key === 'status' ? statusLabel(value) : value} <span aria-hidden="true">×</span></button>)}<button type="button" className="filter-clear-link" onClick={clear}>Clear all</button></div> : <p className="form-help">Showing all cases. Apply filters above to narrow the register.</p>}
+      {results.status === 'ready' && results.data.length === 0 && appliedFilters.length ? <p className="form-help" role="status">No cases match these filters. Remove a filter or clear them to broaden your search.</p> : null}
       {deadlineFlags.status === 'ready' ? <p className="form-help">Deadline flags as of {formatDate(deadlineFlags.data.as_of)}.</p> : <ResourceFeedback resource={deadlineFlags} title="deadline flags" />}
       {results.status === 'ready' ? <CasesTable cases={results.data} navigate={navigate} overdueIds={deadlineFlags.data?.overdue.map(record => record.id) ?? []} /> : <ResourceFeedback resource={results} title="case register" />}
     </section>
